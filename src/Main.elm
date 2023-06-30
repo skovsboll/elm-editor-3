@@ -4,14 +4,25 @@ import Browser
 import Html as H
 import Html.Attributes as A
 import Html.Events as E
+import Json.Decode as J
+import Parser as P
 
 
 type Msg
     = Input String
+    | Scroll ScrollPos
+
+
+type alias ScrollPos =
+    { top : Float
+    , left : Float
+    }
 
 
 type alias Model =
-    { text : String }
+    { text : String
+    , scroll : ScrollPos
+    }
 
 
 main : Program {} Model Msg
@@ -26,52 +37,109 @@ main =
 
 init : {} -> ( Model, Cmd Msg )
 init _ =
-    ( {}, Cmd.none )
+    ( { text =
+            """url=/^\\/add_to_cart\\/(?<product_id>\\d+)/
+| match(file="products.csv", column=product_id, field=product_id)
+| sum(product_price, as="Total revenue")
+| #host=github #parser=json
+
+// This I dunno about
+| repo.name=docker/*
+| groupBy(repo.name, function=count())
+| sort()
+
+// Maybe add this
+| timechart(field=#kind)
+| sankey(from=lallerko, to=nollerkok)"""
+      , scroll = scrollTop
+      }
+    , Cmd.none
+    )
+
+
+scrollTop : ScrollPos
+scrollTop =
+    { top = 0
+    , left = 0
+    }
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        Input _ ->
-            ( model, Cmd.none )
+        Input text ->
+            ( { model | text = text }, Cmd.none )
+
+        Scroll pos ->
+            ( { model | scroll = pos }, Cmd.none )
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
+subscriptions _ =
     Sub.none
 
 
-view : Model -> Html Msg
+format : Model -> List String
+format model =
+    model.text
+        |> String.split "\n"
+
+
+view : Model -> H.Html Msg
 view model =
     H.node "editor"
-        [ H.class "h-full w-full block relative overflow-hidden p-0 m-0 align-left bg-stone-800" ]
+        [ A.class "h-full w-full block relative overflow-hidden p-0 m-0 align-left bg-stone-800" ]
         [ H.node "overlay"
             [ styles
-            , H.class "block absolute top-0 left-0 z-1 pointer-events-none"
+            , A.class "block absolute top-0 left-0 z-1 pointer-events-none will-change-scroll h-auto"
+            , A.style "transform"
+                ("translate("
+                    ++ String.fromFloat -model.scroll.left
+                    ++ "px, "
+                    ++ String.fromFloat -model.scroll.top
+                    ++ "px)"
+                )
             ]
-            [ pre [ H.class "p-2 m-0 align-left" ]
-                [ code []
-                    [ H.node "code-line" [ H.class "block pl-16", attribute "data-lino" "1" ] [ text "lallerkok" ]
-                    , H.node "code-line" [ H.class "block pl-16", attribute "data-lino" "2" ] [ text "snallerkok" ]
-                    ]
+            [ H.pre [ A.class "p-2 m-0 align-left h-full bg-transparent" ]
+                [ H.code []
+                    (format model
+                        |> List.indexedMap
+                            (\idx line ->
+                                H.node "code-line"
+                                    [ A.class "block pl-[0px] text-orange-600"
+                                    , A.class "before:content-[attr(data-lino)] before:inline-block before:align-right before:w-[40px] before:p-0 before:pr-[20px] before:opacity-25"
+                                    , A.attribute "data-lino" (String.fromInt idx)
+                                    ]
+                                    [ H.text (line ++ "\n") ]
+                            )
+                    )
                 ]
             ]
         , H.textarea
             [ styles
             , A.spellcheck False
-            , H.class "pl-16 caret-red-500 text-black resize-none z-2 relative p-2"
+            , A.class "h-full p-2 pl-[48px] caret-red-500 text-transparent resize-none z-2 relative"
             , E.onInput Input
+            , E.on "scroll" parseScrollEvent
             ]
             [ H.text model.text
             ]
         ]
 
 
+parseScrollEvent : J.Decoder Msg
+parseScrollEvent =
+    J.map2 ScrollPos
+        (J.at [ "target", "scrollTop" ] J.float)
+        (J.at [ "target", "scrollLeft" ] J.float)
+        |> J.map Scroll
+
+
 styles : H.Attribute msg
 styles =
     A.class """
-    border-box text-base 
-    font-mono tracking-normal whitespace-pre leading-snug 
-    w-full h-full 
-    p-0 m-0 b-0 bg-transparent text-white
+    border-box 
+    text-base font-mono tracking-normal whitespace-pre leading-snug 
+    w-full p-0 m-0 b-0 
+    bg-transparent 
     """
