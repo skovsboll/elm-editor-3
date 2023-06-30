@@ -79,19 +79,13 @@ subscriptions _ =
     Sub.none
 
 
-format : Model -> List String
-format model =
-    model.text
-        |> String.split "\n"
-
-
 view : Model -> H.Html Msg
 view model =
     H.node "editor"
         [ A.class "h-full w-full block relative overflow-hidden p-0 m-0 align-left bg-stone-800" ]
         [ H.node "overlay"
             [ styles
-            , A.class "block absolute top-0 left-0 z-1 pointer-events-none will-change-scroll h-auto"
+            , A.class "block absolute top-0 left-0 z-1 pointer-events-none will-change-transform h-auto"
             , A.style "transform"
                 ("translate("
                     ++ String.fromFloat -model.scroll.left
@@ -102,15 +96,17 @@ view model =
             ]
             [ H.pre [ A.class "p-2 m-0 align-left h-full bg-transparent" ]
                 [ H.code []
-                    (format model
+                    (toLinesOfFragments model.text
                         |> List.indexedMap
-                            (\idx line ->
+                            (\idx fragments ->
                                 H.node "code-line"
-                                    [ A.class "block pl-[0px] text-orange-600"
+                                    [ A.class "block pl-[0px]"
                                     , A.class "before:content-[attr(data-lino)] before:inline-block before:align-right before:w-[40px] before:p-0 before:pr-[20px] before:opacity-25"
                                     , A.attribute "data-lino" (String.fromInt idx)
                                     ]
-                                    [ H.text (line ++ "\n") ]
+                                    (fragments
+                                        |> List.map (\{ text, tag, color } -> H.node tag [ A.class color ] [ H.text text ])
+                                    )
                             )
                     )
                 ]
@@ -143,3 +139,17 @@ styles =
     w-full p-0 m-0 b-0 
     bg-transparent 
     """
+
+
+type alias Fragment =
+    { text : String
+    , tag : String
+    , color : String
+    }
+
+
+toLinesOfFragments : String -> List (List Fragment)
+toLinesOfFragments txt =
+    txt
+        |> String.split "\n"
+        |> List.map (\l -> [ { text = l ++ "\n", tag = "identifier", color = "text-green-400" } ])
