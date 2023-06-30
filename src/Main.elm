@@ -1,11 +1,11 @@
 module Main exposing (main)
 
 import Browser
+import Hql.Parser exposing (..)
 import Html as H
 import Html.Attributes as A
 import Html.Events as E
 import Json.Decode as J
-import Parser as P exposing ((|.))
 
 
 type Msg
@@ -144,145 +144,3 @@ styles =
     w-full p-0 m-0 b-0 
     bg-transparent 
     """
-
-
-type alias Token =
-    ( Syntax, String )
-
-
-type Syntax
-    = Other
-    | LineBreak
-    | Comment
-    | Symbol
-    | StringLiteral
-
-
-tokenToFragment : Token -> Fragment
-tokenToFragment ( syntax, text ) =
-    case syntax of
-        Other ->
-            { text = text, color = "text-slate-500", tag = "other" }
-
-        Comment ->
-            { text = text, color = "text-white-200", tag = "comment" }
-
-        Symbol ->
-            { text = text, color = "text-blue-600", tag = "symbol" }
-
-        StringLiteral ->
-            { text = text, color = "text-orange-600", tag = "symbol" }
-
-        LineBreak ->
-            { text = text, color = "", tag = "" }
-
-
-parseHql : String -> List Line
-parseHql src =
-    let
-        defaultLines : List Line
-        defaultLines =
-            src
-                |> String.split "\n"
-                |> List.map (\l -> [ { text = l ++ "\n", tag = "no-syntax", color = "" } ])
-    in
-    P.run toRevTokens src
-        |> Result.map toLines
-        |> Result.withDefault defaultLines
-
-
-type alias Line =
-    List Fragment
-
-
-type alias Fragment =
-    { text : String
-    , tag : String
-    , color : String
-    }
-
-
-toLines : List Token -> List (List Fragment)
-toLines revTokens =
-    let
-        help : Token -> ( List Line, List Fragment ) -> ( List Line, List Fragment )
-        help (( syntax, _ ) as token) ( lines, fragments ) =
-            case syntax of
-                LineBreak ->
-                    ( fragments :: lines, [] )
-
-                _ ->
-                    ( lines, tokenToFragment token :: fragments )
-    in
-    List.foldl help ( [], [] ) revTokens
-        |> (\( lines, fragments ) -> fragments :: lines)
-
-
-toRevTokens : P.Parser (List Token)
-toRevTokens =
-    P.loop [] mainLoop
-
-
-mainLoop : List Token -> P.Parser (P.Step (List Token) (List Token))
-mainLoop revTokens =
-    P.oneOf
-        [ whitespace
-            |> P.map (\n -> P.Loop (n :: revTokens))
-        , P.chompIf ((==) '"')
-            |> P.getChompedString
-            |> P.map (\b -> P.Loop (( StringLiteral, b ) :: revTokens))
-        , P.chompIf isSymbol
-            |> P.getChompedString
-            |> P.map (\b -> P.Loop (( Symbol, b ) :: revTokens))
-        , P.chompIf (always True)
-            |> P.getChompedString
-            |> P.map (\b -> P.Loop (( Other, b ) :: revTokens))
-        , P.succeed (P.Done revTokens)
-        ]
-
-
-
--- Helpers
-
-
-isSymbol : Char -> Bool
-isSymbol char =
-    String.contains (String.fromChar char) symbols
-
-
-symbols : String
-symbols =
-    ".,_-!*?+;:<>#%&/|"
-
-
-whitespace : P.Parser Token
-whitespace =
-    P.oneOf
-        [ space
-        , lineBreak
-        ]
-
-
-isSpace : Char -> Bool
-isSpace c =
-    c == ' ' || c == '\t'
-
-
-space : P.Parser Token
-space =
-    chompIfThenWhile isSpace
-        |> P.getChompedString
-        |> P.map (\b -> ( Other, b ))
-
-
-lineBreak : P.Parser Token
-lineBreak =
-    P.symbol "\n"
-        |> P.map (\_ -> ( LineBreak, "\n" ))
-
-
-chompIfThenWhile : (Char -> Bool) -> P.Parser ()
-chompIfThenWhile isNotRelevant =
-    P.succeed ()
-        |. P.chompIf isNotRelevant
-        |. P.chompWhile isNotRelevant
