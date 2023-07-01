@@ -46,7 +46,7 @@ init _ =
 | #host=github #parser=json
 
 // This I dunno about
-| repo.name=docker/*
+| repo.name=docker
 | groupBy(repo.name, function=count())
 | sort()
 
