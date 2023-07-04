@@ -10,6 +10,7 @@ import Json.Decode as J
 
 type Msg
     = Input String
+    | Move Int Int
     | Scroll ScrollPos
 
 
@@ -23,6 +24,16 @@ type alias Model =
     { text : String
     , ast : List Line
     , scroll : ScrollPos
+    , cursor : Cursor
+    }
+
+
+type alias Cursor =
+    { x : Float
+    , y : Float
+    , col : Int
+    , row : Int
+    , pos : Int
     }
 
 
@@ -60,6 +71,7 @@ init _ =
     ( { text = defaultSrc
       , scroll = scrollTop
       , ast = parseHql defaultSrc
+      , cursor = { x = 0, y = 0, col = 0, row = 0, pos = 0 }
       }
     , Cmd.none
     )
@@ -81,17 +93,30 @@ update msg model =
         Scroll pos ->
             ( { model | scroll = pos }, Cmd.none )
 
+        Move start end ->
+            ( { model | cursor = calculateCursorCoordinates model.text end |> Debug.log "cursor" }, Cmd.none )
+
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
     Sub.none
 
 
+keyDecoder : J.Decoder Msg
+keyDecoder =
+    J.map2
+        (\start end ->
+            Move start end
+        )
+        (J.at [ "target", "selectionStart" ] J.int)
+        (J.at [ "target", "selectionEnd" ] J.int)
+
+
 view : Model -> H.Html Msg
 view model =
     H.node "editor"
         [ A.class "h-full w-full block relative overflow-hidden p-0 m-0 align-left bg-stone-800" ]
-        [ H.node "overlay"
+        [ H.node "syntax"
             [ styles
             , A.class "block absolute top-0 left-0 z-1 pointer-events-none will-change-transform h-auto"
             , A.style "transform"
@@ -103,7 +128,23 @@ view model =
                 )
             ]
             [ H.pre [ A.class "p-2 m-0 align-left h-full bg-transparent" ]
-                [ H.code []
+                [ H.node "popup"
+                    [ A.class "absolute h-32 bg-slate-700 w-64 shadow rounded border border-slate-600"
+                    , A.style "left" (String.fromFloat (64 + model.cursor.x) ++ "px")
+                    , A.style "top" (String.fromFloat model.cursor.y ++ "px")
+                    ]
+                    [ H.ul [ A.class "p-2 text-white overflow-scroll h-full" ]
+                        [ H.li [] [ H.text "▴ parseCsv()" ]
+                        , H.li [] [ H.text "❇︎ parseFile()" ]
+                        , H.li [] [ H.text "❇︎ parseThisAndThat()" ]
+                        , H.li [] [ H.text "☆ popeHat()" ]
+                        , H.li [] [ H.text "☆ popHat()" ]
+                        , H.li [] [ H.text "☆ topHat()" ]
+                        , H.li [] [ H.text "☆ zupHat()" ]
+                        , H.li [] [ H.text "☆ wassupHat()" ]
+                        ]
+                    ]
+                , H.code []
                     (model.ast
                         |> List.indexedMap
                             (\idx fragments ->
@@ -121,6 +162,8 @@ view model =
             ]
         , H.textarea
             [ styles
+            , E.on "keyup" keyDecoder
+            , E.on "click" keyDecoder
             , A.spellcheck False
             , A.class "h-full p-2 pl-[48px] caret-red-500 text-transparent resize-none z-2 relative"
             , E.onInput Input
@@ -137,6 +180,51 @@ parseScrollEvent =
         (J.at [ "target", "scrollTop" ] J.float)
         (J.at [ "target", "scrollLeft" ] J.float)
         |> J.map Scroll
+
+
+fontHeight : Float
+fontHeight =
+    22.0
+
+
+fontWidth : Float
+fontWidth =
+    9.6
+
+
+calculateCursorCoordinates : String -> Int -> Cursor
+calculateCursorCoordinates text position =
+    let
+        lines =
+            text
+                |> String.left position
+                |> String.split "\n"
+
+        row =
+            lines |> List.length
+
+        y =
+            toFloat (row - 1) * fontHeight
+
+        col =
+            case List.reverse lines of
+                hd :: _ ->
+                    String.length hd + 1
+
+                [] ->
+                    0
+
+        x =
+            toFloat (col - 1) * fontWidth
+    in
+    { x = x, y = y, row = row, col = col, pos = position }
+
+
+
+-- text-base is:
+--
+--font-size: 1rem; /* 16px */
+--line-height: 1.5rem; /* 24px */
 
 
 styles : H.Attribute msg
