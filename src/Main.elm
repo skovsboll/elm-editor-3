@@ -155,12 +155,12 @@ view model =
             ]
             [ H.text model.text
             ]
-        , H.node "popup"
-            [ A.class "absolute h-32 bg-slate-700 w-64 shadow rounded border border-slate-600"
+        , H.node "auto-complete"
+            [ A.class "absolute h-32 bg-slate-700 w-64 shadow rounded border border-slate-600 text-sm p-1"
             , A.style "left" (String.fromFloat (64 + model.cursor.x) ++ "px")
             , A.style "top" (String.fromFloat (model.cursor.y - model.scroll.top) ++ "px")
             ]
-            [ H.ul [ A.class "p-2 text-white overflow-scroll h-full" ]
+            [ H.ul [ A.class "text-white overflow-scroll h-full" ]
                 [ H.li [] [ H.text "▴ parseCsv()" ]
                 , H.li [] [ H.text "❇︎ parseFile()" ]
                 , H.li [] [ H.text "❇︎ parseThisAndThat()" ]
