@@ -45,14 +45,17 @@ init _ =
 | sum(product_price, as="Total revenue")
 | #host=github #parser=json
 
-// This I dunno about
+/* Log everything.
+   Search in real time.
+*/
 | repo.name=docker
 | groupBy(repo.name, function=count())
 | sort()
 
-// Maybe add this
+// Time is of essense
 | timechart(field=#kind)
-| sankey(from=lallerko, to=nollerkok)"""
+| sankey(from=lallerko, to=nollerkok)
+"""
     in
     ( { text = defaultSrc
       , scroll = scrollTop

@@ -30,7 +30,7 @@ tokenToFragment ( syntax, text ) =
             { text = text, color = "text-green-400", tag = "comment" }
 
         Symbol ->
-            { text = text, color = "text-slate-400", tag = "symbol" }
+            { text = text, color = "text-yellow-400", tag = "symbol" }
 
         StringLiteral ->
             { text = text, color = "text-orange-300", tag = "string" }
@@ -47,21 +47,26 @@ tokenToFragment ( syntax, text ) =
 
 parseHql : String -> List Line
 parseHql src =
-    --let
-    --    defaultLines : List Line
-    --    defaultLines =
-    --        src
-    --            |> String.split "\n"
-    --            |> List.map (\l -> [ { text = l ++ "\n", tag = "no-syntax", color = "" } ])
-    --in
-    P.run toRevTokens src
+    let
+        defaultLines : List Line
+        defaultLines =
+            src
+                |> String.split "\n"
+                |> List.map (\l -> [ { text = l ++ "\n", tag = "no-syntax", color = "" } ])
+
+        parsedResult : Result (List P.DeadEnd) (List Token)
+        parsedResult =
+            P.run toRevTokens src
+    in
+    parsedResult
         |> Result.map toLines
         |> Result.mapError
             (\deadends ->
                 deadends
+                    |> Debug.log "deadEnds"
                     |> deadEndsToLines
             )
-        |> errorAsDefault
+        |> Result.withDefault defaultLines
 
 
 deadEndsToLines : List P.DeadEnd -> List Line
@@ -163,6 +168,7 @@ mainLoop revTokens =
         [ whitespace |> P.map (\n -> P.Loop (n :: revTokens))
         , stringLiteral revTokens
         , singleComment revTokens
+        , multiComment revTokens
         , regex revTokens
 
         --, function revTokens
@@ -245,6 +251,9 @@ regexLoop revTokens =
         , P.symbol "/"
             |> P.map (\() -> ( RegexLiteral, "/" ))
             |> P.map (\ns -> P.Done (ns :: revTokens))
+        , P.symbol "\n"
+            |> P.map (\() -> ( LineBreak, "" ))
+            |> P.map (\ns -> P.Done (ns :: revTokens))
         , P.chompIf (always True)
             |> P.getChompedString
             |> P.map (\str -> ( RegexLiteral, str ))
@@ -257,16 +266,43 @@ singleComment revTokens =
     P.symbol "//"
         |> P.andThen
             (\() ->
-                P.loop (( Comment, "//" ) :: revTokens) commentLoop
+                P.loop (( Comment, "//" ) :: revTokens) singleCommentLoop
             )
         |> P.map P.Loop
 
 
-commentLoop : List Token -> P.Parser (P.Step (List Token) (List Token))
-commentLoop revTokens =
+multiComment : List Token -> P.Parser (P.Step (List Token) (List Token))
+multiComment revTokens =
+    P.symbol "/*"
+        |> P.andThen
+            (\() ->
+                P.loop (( Comment, "/*" ) :: revTokens) multiCommentLoop
+            )
+        |> P.map P.Loop
+
+
+singleCommentLoop : List Token -> P.Parser (P.Step (List Token) (List Token))
+singleCommentLoop revTokens =
     P.oneOf
         [ P.symbol "\n"
             |> P.map (\_ -> ( LineBreak, "" ))
+            |> P.map (\ns -> P.Done (ns :: revTokens))
+        , P.chompIf (always True)
+            |> P.getChompedString
+            |> P.map (\str -> ( Comment, str ))
+            |> P.map (\ns -> P.Loop (ns :: revTokens))
+        , P.succeed (P.Done revTokens)
+        ]
+
+
+multiCommentLoop : List Token -> P.Parser (P.Step (List Token) (List Token))
+multiCommentLoop revTokens =
+    P.oneOf
+        [ P.symbol "\n"
+            |> P.map (\_ -> ( LineBreak, "" ))
+            |> P.map (\ns -> P.Loop (ns :: revTokens))
+        , P.symbol "*/"
+            |> P.map (\_ -> ( Comment, "*/" ))
             |> P.map (\ns -> P.Done (ns :: revTokens))
         , P.chompIf (always True)
             |> P.getChompedString
@@ -282,7 +318,7 @@ isSymbol char =
 
 symbols : String
 symbols =
-    ".,_-!*?+;:<>%&/|\\"
+    ".,_-!*?+=;:<>%&/|\\()[]{}"
 
 
 whitespace : P.Parser Token
