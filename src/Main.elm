@@ -128,23 +128,7 @@ view model =
                 )
             ]
             [ H.pre [ A.class "p-2 m-0 align-left h-full bg-transparent" ]
-                [ H.node "popup"
-                    [ A.class "absolute h-32 bg-slate-700 w-64 shadow rounded border border-slate-600"
-                    , A.style "left" (String.fromFloat (64 + model.cursor.x) ++ "px")
-                    , A.style "top" (String.fromFloat model.cursor.y ++ "px")
-                    ]
-                    [ H.ul [ A.class "p-2 text-white overflow-scroll h-full" ]
-                        [ H.li [] [ H.text "▴ parseCsv()" ]
-                        , H.li [] [ H.text "❇︎ parseFile()" ]
-                        , H.li [] [ H.text "❇︎ parseThisAndThat()" ]
-                        , H.li [] [ H.text "☆ popeHat()" ]
-                        , H.li [] [ H.text "☆ popHat()" ]
-                        , H.li [] [ H.text "☆ topHat()" ]
-                        , H.li [] [ H.text "☆ zupHat()" ]
-                        , H.li [] [ H.text "☆ wassupHat()" ]
-                        ]
-                    ]
-                , H.code []
+                [ H.code []
                     (model.ast
                         |> List.indexedMap
                             (\idx fragments ->
@@ -170,6 +154,22 @@ view model =
             , E.on "scroll" parseScrollEvent
             ]
             [ H.text model.text
+            ]
+        , H.node "popup"
+            [ A.class "absolute h-32 bg-slate-700 w-64 shadow rounded border border-slate-600"
+            , A.style "left" (String.fromFloat (64 + model.cursor.x) ++ "px")
+            , A.style "top" (String.fromFloat (model.cursor.y - model.scroll.top) ++ "px")
+            ]
+            [ H.ul [ A.class "p-2 text-white overflow-scroll h-full" ]
+                [ H.li [] [ H.text "▴ parseCsv()" ]
+                , H.li [] [ H.text "❇︎ parseFile()" ]
+                , H.li [] [ H.text "❇︎ parseThisAndThat()" ]
+                , H.li [] [ H.text "☆ popeHat()" ]
+                , H.li [] [ H.text "☆ popHat()" ]
+                , H.li [] [ H.text "☆ topHat()" ]
+                , H.li [] [ H.text "☆ zupHat()" ]
+                , H.li [] [ H.text "☆ wassupHat()" ]
+                ]
             ]
         ]
 
@@ -204,7 +204,7 @@ calculateCursorCoordinates text position =
             lines |> List.length
 
         y =
-            toFloat (row - 1) * fontHeight
+            toFloat row * fontHeight - 10
 
         col =
             case List.reverse lines of
