@@ -1,8 +1,7 @@
 module Hql.Parser exposing (Fragment, Line, parseHql)
 
---import Json.Decode exposing (maybe)
-
 import Char exposing (isAlphaNum)
+import Hql.Functions as Functions
 import Parser as P exposing ((|.), (|=))
 
 
@@ -18,6 +17,7 @@ type Syntax
     | StringLiteral
     | RegexLiteral
     | EscapeCharacter
+    | FunctionCall
 
 
 tokenToFragment : Token -> Fragment
@@ -27,19 +27,22 @@ tokenToFragment ( syntax, text ) =
             { text = text, color = "text-slate-200", tag = "other" }
 
         Comment ->
-            { text = text, color = "text-green-400", tag = "comment" }
+            { text = text, color = "text-gray-500", tag = "comment" }
 
         Symbol ->
-            { text = text, color = "text-yellow-400", tag = "symbol" }
+            { text = text, color = "text-blue-300", tag = "symbol" }
 
         StringLiteral ->
             { text = text, color = "text-orange-300", tag = "string" }
 
         RegexLiteral ->
-            { text = text, color = "text-blue-300", tag = "regex" }
+            { text = text, color = "text-blue-500", tag = "regex" }
 
         EscapeCharacter ->
             { text = text, color = "text-orange-400", tag = "escape-char" }
+
+        FunctionCall ->
+            { text = text, color = "text-green-600", tag = "escape-char" }
 
         LineBreak ->
             { text = text, color = "", tag = "" }
@@ -170,8 +173,7 @@ mainLoop revTokens =
         , singleComment revTokens
         , multiComment revTokens
         , regex revTokens
-
-        --, function revTokens
+        , function |> P.map (\n -> P.Loop (n ++ revTokens)) |> P.backtrackable
         , otherSymbols revTokens
         , anything revTokens
         , P.succeed (P.Done revTokens)
@@ -180,12 +182,28 @@ mainLoop revTokens =
 
 
 -- Helpers
---function : List Token -> P.Parser (P.Step (List Token) (List Token))
---function =
---    P.succeed ()
---        |= P.chompIf Char.isAlphaNum
---        |= P.chompWhile Char.isAlphaNum
---        |= P.symbol "("
+
+
+function : P.Parser (List Token)
+function =
+    P.chompIf Char.isAlpha
+        |. P.chompWhile (\c -> Char.isAlphaNum c || c == ':')
+        |. P.chompIf (\c -> c == '(')
+        |> P.getChompedString
+        |> P.andThen
+            (\str ->
+                let
+                    fnName : String
+                    fnName =
+                        String.slice 0 -1 str
+                            |> String.toLower
+                in
+                if List.any (\fn -> fn == fnName) Functions.names then
+                    P.succeed [ ( Symbol, "(" ), ( FunctionCall, fnName ) ]
+
+                else
+                    P.problem "Unknown function"
+            )
 
 
 otherSymbols : List Token -> P.Parser (P.Step (List Token) (List Token))
@@ -222,6 +240,9 @@ stringLoop revTokens =
             |> P.map (\ns -> P.Loop (ns :: revTokens))
         , P.symbol "\""
             |> P.map (\() -> ( StringLiteral, "\"" ))
+            |> P.map (\ns -> P.Done (ns :: revTokens))
+        , P.symbol "\n"
+            |> P.map (\() -> ( LineBreak, "" ))
             |> P.map (\ns -> P.Done (ns :: revTokens))
         , P.chompIf (always True)
             |> P.getChompedString

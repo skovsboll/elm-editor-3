@@ -25,6 +25,7 @@ type alias Model =
     , ast : List Line
     , scroll : ScrollPos
     , cursor : Cursor
+    , suggestions : List ( String, String )
     }
 
 
@@ -72,6 +73,7 @@ init _ =
       , scroll = scrollTop
       , ast = parseHql defaultSrc
       , cursor = { x = 0, y = 0, col = 0, row = 0, pos = 0 }
+      , suggestions = []
       }
     , Cmd.none
     )
@@ -93,8 +95,8 @@ update msg model =
         Scroll pos ->
             ( { model | scroll = pos }, Cmd.none )
 
-        Move start end ->
-            ( { model | cursor = calculateCursorCoordinates model.text end |> Debug.log "cursor" }, Cmd.none )
+        Move _ end ->
+            ( { model | cursor = calculateCursorCoordinates model.text end }, Cmd.none )
 
 
 subscriptions : Model -> Sub Msg
@@ -155,22 +157,19 @@ view model =
             ]
             [ H.text model.text
             ]
-        , H.node "auto-complete"
-            [ A.class "absolute h-32 bg-slate-700 w-64 shadow rounded border border-slate-600 text-sm p-1"
-            , A.style "left" (String.fromFloat (64 + model.cursor.x) ++ "px")
-            , A.style "top" (String.fromFloat (model.cursor.y - model.scroll.top) ++ "px")
-            ]
-            [ H.ul [ A.class "text-white overflow-scroll h-full" ]
-                [ H.li [] [ H.text "▴ parseCsv()" ]
-                , H.li [] [ H.text "❇︎ parseFile()" ]
-                , H.li [] [ H.text "❇︎ parseThisAndThat()" ]
-                , H.li [] [ H.text "☆ popeHat()" ]
-                , H.li [] [ H.text "☆ popHat()" ]
-                , H.li [] [ H.text "☆ topHat()" ]
-                , H.li [] [ H.text "☆ zupHat()" ]
-                , H.li [] [ H.text "☆ wassupHat()" ]
-                ]
-            ]
+        , case model.suggestions of
+            [] ->
+                H.node "no-suggestions" [] []
+
+            items ->
+                H.node "auto-complete"
+                    [ A.class "absolute h-32 bg-slate-700 w-64 shadow rounded border border-slate-600 text-sm p-1"
+                    , A.style "left" (String.fromFloat (64 + model.cursor.x) ++ "px")
+                    , A.style "top" (String.fromFloat (model.cursor.y - model.scroll.top) ++ "px")
+                    ]
+                    [ H.ul [ A.class "text-white overflow-scroll h-full" ]
+                        (items |> List.map (\( icon, code ) -> H.li [] [ H.text icon, H.text "&nbsp;", H.text code ]))
+                    ]
         ]
 
 
