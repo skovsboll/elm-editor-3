@@ -12,6 +12,7 @@ type Msg
     = Input String
     | Move Int Int
     | Scroll ScrollPos
+    | ToggleSuggestions
 
 
 type alias ScrollPos =
@@ -26,7 +27,17 @@ type alias Model =
     , scroll : ScrollPos
     , cursor : Cursor
     , suggestions : List ( String, String )
+    , adorns : List Adorn
     }
+
+
+type alias Adorn =
+    List AdornFragment
+
+
+type AdornFragment
+    = Normal String
+    | Error String
 
 
 type alias Cursor =
@@ -74,9 +85,31 @@ init _ =
       , ast = parseHql defaultSrc
       , cursor = { x = 0, y = 0, col = 0, row = 0, pos = 0 }
       , suggestions = []
+      , adorns = fakeAdorns defaultSrc
       }
     , Cmd.none
     )
+
+
+fakeAdorns : String -> List Adorn
+fakeAdorns src =
+    src
+        |> String.split "\n"
+        |> List.map
+            (\line ->
+                line
+                    |> String.split " "
+                    |> List.concatMap
+                        (\token ->
+                            [ if token == "column=product_id," then
+                                Error token
+
+                              else
+                                Normal token
+                            , Normal " "
+                            ]
+                        )
+            )
 
 
 scrollTop : ScrollPos
@@ -98,6 +131,27 @@ update msg model =
         Move _ end ->
             ( { model | cursor = calculateCursorCoordinates model.text end }, Cmd.none )
 
+        ToggleSuggestions ->
+            case model.suggestions of
+                [] ->
+                    ( { model
+                        | suggestions =
+                            [ ( "✸", "timechart()" )
+                            , ( "◎", "parseCsv()" )
+                            , ( "✢", "mjallo()" )
+                            , ( "❍", "djallo()" )
+                            ]
+                      }
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( { model
+                        | suggestions = []
+                      }
+                    , Cmd.none
+                    )
+
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
@@ -106,10 +160,17 @@ subscriptions _ =
 
 keyDecoder : J.Decoder Msg
 keyDecoder =
-    J.map2
-        (\start end ->
-            Move start end
+    J.map4
+        (\key ctrl start end ->
+            case ( key, ctrl ) of
+                ( " ", True ) ->
+                    ToggleSuggestions
+
+                _ ->
+                    Move start end
         )
+        (J.field "key" J.string)
+        (J.field "ctrlKey" J.bool)
         (J.at [ "target", "selectionStart" ] J.int)
         (J.at [ "target", "selectionEnd" ] J.int)
 
@@ -118,7 +179,41 @@ view : Model -> H.Html Msg
 view model =
     H.node "editor"
         [ A.class "h-full w-full block relative overflow-hidden p-0 m-0 align-left bg-stone-800" ]
-        [ H.node "syntax"
+        [ H.node "errors"
+            [ styles
+            , A.class "block absolute top-0 left-0 z-2 pointer-events-none will-change-transform h-auto"
+            , A.style "transform"
+                ("translate("
+                    ++ String.fromFloat -model.scroll.left
+                    ++ "px, "
+                    ++ String.fromFloat -model.scroll.top
+                    ++ "px)"
+                )
+            ]
+            [ H.pre [ A.class "p-2 m-0 align-left h-full bg-transparent" ]
+                [ H.code []
+                    (model.adorns
+                        |> List.map
+                            (\fragments ->
+                                H.node
+                                    "adorn-line"
+                                    [ A.class "block pl-[40px] translate-y-[0.5rem]" ]
+                                    (fragments
+                                        |> List.map
+                                            (\fragment ->
+                                                case fragment of
+                                                    Error txt ->
+                                                        H.node "error" [ A.class "text-red-500 " ] [ String.repeat (String.length txt) "~" |> H.text ]
+
+                                                    Normal txt ->
+                                                        H.node "no-error" [] [ String.repeat (String.length txt) " " |> H.text ]
+                                            )
+                                    )
+                            )
+                    )
+                ]
+            ]
+        , H.node "syntax"
             [ styles
             , A.class "block absolute top-0 left-0 z-1 pointer-events-none will-change-transform h-auto"
             , A.style "transform"
@@ -163,12 +258,12 @@ view model =
 
             items ->
                 H.node "auto-complete"
-                    [ A.class "absolute h-32 bg-slate-700 w-64 shadow rounded border border-slate-600 text-sm p-1"
+                    [ A.class "absolute h-32 bg-slate-700 w-64 shadow rounded border border-slate-600 font-mono tracking-normal whitespace-pre leading-snug text-sm p-1"
                     , A.style "left" (String.fromFloat (64 + model.cursor.x) ++ "px")
                     , A.style "top" (String.fromFloat (model.cursor.y - model.scroll.top) ++ "px")
                     ]
                     [ H.ul [ A.class "text-white overflow-scroll h-full" ]
-                        (items |> List.map (\( icon, code ) -> H.li [] [ H.text icon, H.text "&nbsp;", H.text code ]))
+                        (items |> List.map (\( icon, code ) -> H.li [] [ H.text icon, H.text " ", H.text code ]))
                     ]
         ]
 
