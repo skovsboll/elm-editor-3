@@ -114,22 +114,12 @@ bestScore ma mb =
                 Just ( sa, ca )
 
 
-orCrash : Maybe a -> a
-orCrash m =
-    case m of
-        Just a ->
-            a
-
-        _ ->
-            Debug.crash "No options"
-
-
 best : Maybe Cell -> Maybe Cell -> Maybe Cell -> String -> String -> Cell
 best tl t l a b =
     choices a b
         |> List.map (scores tl t l)
         |> List.foldl bestScore Nothing
-        |> orCrash
+        |> Maybe.withDefault ( 0, [] )
 
 
 
@@ -175,7 +165,7 @@ calcCell ( row, a ) ( col, b ) s =
 calcRow : List String -> ( Int, String ) -> State -> State
 calcRow bs ( row, a ) d =
     bs
-        |> List.indexedMap (,)
+        |> List.indexedMap Tuple.pair
         |> List.foldl (calcCell ( row, a )) d
 
 
@@ -183,22 +173,24 @@ initialGrid : List String -> List String -> State
 initialGrid az bs =
     Dict.singleton ( -1, -1 ) ( 0, [] )
         |> calcRow bs ( -1, "" )
-        |> (\d -> List.foldl (\a -> calcCell a ( -1, "" )) d (az |> List.indexedMap (,)))
+        |> (\d -> List.foldl (\a -> calcCell a ( -1, "" )) d (az |> List.indexedMap Tuple.pair))
 
 
 calcGrid : List String -> List String -> State
 calcGrid az bs =
     az
-        |> List.indexedMap (,)
+        |> List.indexedMap Tuple.pair
         |> List.foldl (calcRow bs) (initialGrid az bs)
 
 
 diff : (String -> List String) -> String -> String -> List Change
 diff tokenize a b =
     let
+        az : List String
         az =
             tokenize a
 
+        bs : List String
         bs =
             tokenize b
     in
@@ -211,7 +203,7 @@ diff tokenize a b =
     else
         calcGrid az bs
             |> Dict.get ( -1 + List.length az, -1 + List.length bs )
-            |> Maybe.map (\( score, changes ) -> changes)
+            |> Maybe.map Tuple.second
             |> Maybe.withDefault []
             |> List.foldl mergeAll []
 
@@ -252,12 +244,12 @@ tokenizeLines s =
     else
         tokens
             |> List.indexedMap
-                (\i s ->
+                (\i s_ ->
                     if i < n - 1 then
-                        s ++ "\n"
+                        s_ ++ "\n"
 
                     else
-                        s
+                        s_
                 )
 
 

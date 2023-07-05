@@ -1,6 +1,7 @@
 module Main exposing (main)
 
 import Browser
+import Diff exposing (Change)
 import Hql.Parser exposing (..)
 import Html as H
 import Html.Attributes as A
@@ -23,6 +24,8 @@ type alias ScrollPos =
 
 type alias Model =
     { text : String
+    , origText : String
+    , diff : List Change
     , ast : List Line
     , scroll : ScrollPos
     , cursor : Cursor
@@ -81,6 +84,8 @@ init _ =
 """
     in
     ( { text = defaultSrc
+      , origText = defaultSrc
+      , diff = []
       , scroll = scrollTop
       , ast = parseHql defaultSrc
       , cursor = { x = 0, y = 0, col = 0, row = 0, pos = 0 }
@@ -123,7 +128,43 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         Input text ->
-            ( { model | text = text, ast = parseHql text }, Cmd.none )
+            ( { model
+                | text = text
+                , ast = parseHql text
+                , diff =
+                    Debug.log "diff"
+                        (Diff.diffLines model.origText text
+                            |> List.concatMap
+                                (\change ->
+                                    case change of
+                                        Diff.NoChange lines ->
+                                            lines
+                                                |> String.slice 0 -1
+                                                |> String.split "\n"
+                                                |> List.map Diff.NoChange
+
+                                        Diff.Added lines ->
+                                            lines
+                                                |> String.slice 0 -1
+                                                |> String.split "\n"
+                                                |> List.map Diff.Added
+
+                                        Diff.Changed _ lines ->
+                                            lines
+                                                |> String.slice 0 -1
+                                                |> String.split "\n"
+                                                |> List.map (Diff.Changed "")
+
+                                        Diff.Removed lines ->
+                                            lines
+                                                |> String.slice 0 -1
+                                                |> String.split "\n"
+                                                |> List.map Diff.Removed
+                                )
+                        )
+              }
+            , Cmd.none
+            )
 
         Scroll pos ->
             ( { model | scroll = pos }, Cmd.none )
@@ -179,7 +220,39 @@ view : Model -> H.Html Msg
 view model =
     H.node "editor"
         [ A.class "h-full w-full block relative overflow-hidden p-0 m-0 align-left bg-stone-800" ]
-        [ H.node "errors"
+        [ H.node "diff"
+            [ styles
+            , A.class "block absolute top-0 left-8 z-2 pointer-events-none will-change-transform h-auto"
+            , A.style "transform"
+                ("translate("
+                    ++ String.fromFloat -model.scroll.left
+                    ++ "px, "
+                    ++ String.fromFloat -model.scroll.top
+                    ++ "px)"
+                )
+            ]
+            [ H.pre [ A.class "p-2 m-0 align-left h-full bg-transparent border-none" ]
+                [ H.code []
+                    (model.diff
+                        |> List.map
+                            (\line ->
+                                case line of
+                                    Diff.NoChange txt ->
+                                        H.node "no-change" [ A.class "block w-1" ] [ H.text " " ]
+
+                                    Diff.Added _ ->
+                                        H.node "line-added" [ A.class "block bg-green-600 w-1" ] [ H.text " " ]
+
+                                    Diff.Changed _ _ ->
+                                        H.node "line-changed" [ A.class "block bg-yellow-600 w-1" ] [ H.text " " ]
+
+                                    Diff.Removed _ ->
+                                        H.node "line-removed" [ A.class "block bg-red-600 w-1" ] [ H.text " " ]
+                            )
+                    )
+                ]
+            ]
+        , H.node "errors"
             [ styles
             , A.class "block absolute top-0 left-0 z-2 pointer-events-none will-change-transform h-auto"
             , A.style "transform"
@@ -190,7 +263,7 @@ view model =
                     ++ "px)"
                 )
             ]
-            [ H.pre [ A.class "p-2 m-0 align-left h-full bg-transparent" ]
+            [ H.pre [ A.class "p-2 m-0 align-left h-full bg-transparent border-none" ]
                 [ H.code []
                     (model.adorns
                         |> List.map
@@ -224,7 +297,7 @@ view model =
                     ++ "px)"
                 )
             ]
-            [ H.pre [ A.class "p-2 m-0 align-left h-full bg-transparent" ]
+            [ H.pre [ A.class "p-2 m-0 align-left h-full bg-transparent border-none" ]
                 [ H.code []
                     (model.ast
                         |> List.indexedMap
