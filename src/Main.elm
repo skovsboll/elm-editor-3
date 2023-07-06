@@ -216,137 +216,168 @@ keyDecoder =
         (J.at [ "target", "selectionEnd" ] J.int)
 
 
-view : Model -> H.Html Msg
-view model =
-    H.node "editor"
-        [ A.class "h-full w-full block relative overflow-hidden p-0 m-0 align-left bg-stone-800" ]
-        [ H.node "diff"
-            [ styles
-            , A.class "block absolute top-0 left-8 z-2 pointer-events-none will-change-transform h-auto"
-            , A.style "transform"
-                ("translate("
-                    ++ String.fromFloat -model.scroll.left
-                    ++ "px, "
-                    ++ String.fromFloat -model.scroll.top
-                    ++ "px)"
-                )
-            ]
-            [ H.pre [ A.class "p-2 m-0 align-left h-full bg-transparent border-none" ]
-                [ H.code []
-                    (model.diff
-                        |> List.map
-                            (\line ->
-                                case line of
-                                    Diff.NoChange txt ->
-                                        H.node "no-change" [ A.class "block w-1" ] [ H.text " " ]
-
-                                    Diff.Added _ ->
-                                        H.node "line-added" [ A.class "block bg-green-600 w-1" ] [ H.text " " ]
-
-                                    Diff.Changed _ _ ->
-                                        H.node "line-changed" [ A.class "block bg-yellow-600 w-1" ] [ H.text " " ]
-
-                                    Diff.Removed _ ->
-                                        H.node "line-removed" [ A.class "block bg-red-600 w-1" ] [ H.text " " ]
-                            )
-                    )
-                ]
-            ]
-        , H.node "errors"
-            [ styles
-            , A.class "block absolute top-0 left-0 z-2 pointer-events-none will-change-transform h-auto"
-            , A.style "transform"
-                ("translate("
-                    ++ String.fromFloat -model.scroll.left
-                    ++ "px, "
-                    ++ String.fromFloat -model.scroll.top
-                    ++ "px)"
-                )
-            ]
-            [ H.pre [ A.class "p-2 m-0 align-left h-full bg-transparent border-none" ]
-                [ H.code []
-                    (model.adorns
-                        |> List.map
-                            (\fragments ->
-                                H.node
-                                    "adorn-line"
-                                    [ A.class "block pl-[40px] translate-y-[0.5rem]" ]
-                                    (fragments
-                                        |> List.map
-                                            (\fragment ->
-                                                case fragment of
-                                                    Error txt ->
-                                                        H.node "error" [ A.class "text-red-500 " ] [ String.repeat (String.length txt) "~" |> H.text ]
-
-                                                    Normal txt ->
-                                                        H.node "no-error" [] [ String.repeat (String.length txt) " " |> H.text ]
-                                            )
-                                    )
-                            )
-                    )
-                ]
-            ]
-        , H.node "syntax"
-            [ styles
-            , A.class "block absolute top-0 left-0 z-1 pointer-events-none will-change-transform h-auto"
-            , A.style "transform"
-                ("translate("
-                    ++ String.fromFloat -model.scroll.left
-                    ++ "px, "
-                    ++ String.fromFloat -model.scroll.top
-                    ++ "px)"
-                )
-            ]
-            [ H.pre [ A.class "p-2 m-0 align-left h-full bg-transparent border-none" ]
-                [ H.code []
-                    (model.ast
-                        |> List.indexedMap
-                            (\idx fragments ->
-                                H.node "code-line"
-                                    [ A.class "block pl-[0px]"
-                                    , A.class "before:content-[attr(data-lino)] before:inline-block before:text-right before:w-[40px] before:p-0 before:pr-[20px] before:opacity-25 before:text-white"
-                                    , A.attribute "data-lino" (String.fromInt idx)
-                                    ]
-                                    (fragments
-                                        |> List.map (\{ text, tag, color } -> H.node tag [ A.class color ] [ H.text text ])
-                                    )
-                            )
-                    )
-                ]
-            ]
-        , H.textarea
-            [ styles
-            , E.on "keyup" keyDecoder
-            , E.on "click" keyDecoder
-            , A.spellcheck False
-            , A.class "h-full p-2 pl-[48px] caret-red-500 text-transparent resize-none z-2 relative"
-            , E.onInput Input
-            , E.on "scroll" parseScrollEvent
-            ]
-            [ H.text model.text
-            ]
-        , case model.suggestions of
-            [] ->
-                H.node "no-suggestions" [] []
-
-            items ->
-                H.node "auto-complete"
-                    [ A.class "absolute h-32 bg-slate-700 w-64 shadow rounded border border-slate-600 font-mono tracking-normal whitespace-pre leading-snug text-sm p-1"
-                    , A.style "left" (String.fromFloat (64 + model.cursor.x) ++ "px")
-                    , A.style "top" (String.fromFloat (model.cursor.y - model.scroll.top) ++ "px")
-                    ]
-                    [ H.ul [ A.class "text-white overflow-scroll h-full" ]
-                        (items |> List.map (\( icon, code ) -> H.li [] [ H.text icon, H.text " ", H.text code ]))
-                    ]
-        ]
-
-
 parseScrollEvent : J.Decoder Msg
 parseScrollEvent =
     J.map2 ScrollPos
         (J.at [ "target", "scrollTop" ] J.float)
         (J.at [ "target", "scrollLeft" ] J.float)
         |> J.map Scroll
+
+
+
+--
+-- VIEW
+--
+
+
+view : Model -> H.Html Msg
+view model =
+    H.node "editor"
+        [ A.class "h-full w-full block relative overflow-hidden p-0 m-0 align-left bg-stone-800" ]
+        [ viewDiffGutter model
+        , viewErrorOverlay model
+        , viewSyntaxOverlay model
+        , viewTextArea model
+        , viewAutoCompleteOverlay model
+        ]
+
+
+viewTextArea : Model -> H.Html Msg
+viewTextArea model =
+    H.textarea
+        [ styles
+        , E.on "keyup" keyDecoder
+        , E.on "click" keyDecoder
+        , A.spellcheck False
+        , A.class "h-full p-2 pl-[48px] caret-red-500 text-transparent resize-none z-2 relative"
+        , E.onInput Input
+        , E.on "scroll" parseScrollEvent
+        ]
+        [ H.text model.text
+        ]
+
+
+viewSyntaxOverlay : Model -> H.Html msg
+viewSyntaxOverlay model =
+    H.node "syntax"
+        [ styles
+        , A.class "block absolute top-0 left-0 z-1 pointer-events-none will-change-transform h-auto"
+        , A.style "transform"
+            ("translate("
+                ++ String.fromFloat -model.scroll.left
+                ++ "px, "
+                ++ String.fromFloat -model.scroll.top
+                ++ "px)"
+            )
+        ]
+        [ H.pre [ A.class "p-2 m-0 align-left h-full bg-transparent border-none" ]
+            [ H.code []
+                (model.ast
+                    |> List.indexedMap
+                        (\idx fragments ->
+                            H.node "code-line"
+                                [ A.class "block pl-[0px]"
+                                , A.class "before:content-[attr(data-lino)] before:inline-block before:text-right before:w-[40px] before:p-0 before:pr-[20px] before:opacity-25 before:text-white"
+                                , A.attribute "data-lino" (String.fromInt idx)
+                                ]
+                                (fragments
+                                    |> List.map (\{ text, tag, color } -> H.node tag [ A.class color ] [ H.text text ])
+                                )
+                        )
+                )
+            ]
+        ]
+
+
+viewAutoCompleteOverlay : Model -> H.Html Msg
+viewAutoCompleteOverlay model =
+    case model.suggestions of
+        [] ->
+            H.node "no-suggestions" [] []
+
+        items ->
+            H.node "auto-complete"
+                [ A.class "absolute h-32 bg-slate-700 w-64 shadow rounded border border-slate-600 font-mono tracking-normal whitespace-pre leading-snug text-sm p-1"
+                , A.style "left" (String.fromFloat (64 + model.cursor.x) ++ "px")
+                , A.style "top" (String.fromFloat (model.cursor.y - model.scroll.top) ++ "px")
+                ]
+                [ H.ul [ A.class "text-white overflow-scroll h-full" ]
+                    (items |> List.map (\( icon, code ) -> H.li [] [ H.text icon, H.text " ", H.text code ]))
+                ]
+
+
+viewErrorOverlay : Model -> H.Html msg
+viewErrorOverlay model =
+    H.node "errors"
+        [ styles
+        , A.class "block absolute top-0 left-0 z-2 pointer-events-none will-change-transform h-auto"
+        , A.style "transform"
+            ("translate("
+                ++ String.fromFloat -model.scroll.left
+                ++ "px, "
+                ++ String.fromFloat -model.scroll.top
+                ++ "px)"
+            )
+        ]
+        [ H.pre [ A.class "p-2 m-0 align-left h-full bg-transparent border-none" ]
+            [ H.code []
+                (model.adorns
+                    |> List.map
+                        (\fragments ->
+                            H.node
+                                "adorn-line"
+                                [ A.class "block pl-[40px] translate-y-[0.5rem]" ]
+                                (fragments
+                                    |> List.map
+                                        (\fragment ->
+                                            case fragment of
+                                                Error txt ->
+                                                    H.node "error" [ A.class "text-red-500 " ] [ String.repeat (String.length txt) "~" |> H.text ]
+
+                                                Normal txt ->
+                                                    H.node "no-error" [] [ String.repeat (String.length txt) " " |> H.text ]
+                                        )
+                                )
+                        )
+                )
+            ]
+        ]
+
+
+viewDiffGutter : Model -> H.Html msg
+viewDiffGutter model =
+    H.node "diff"
+        [ styles
+        , A.class "block absolute top-0 left-8 z-2 pointer-events-none will-change-transform h-auto"
+        , A.style "transform"
+            ("translate("
+                ++ String.fromFloat -model.scroll.left
+                ++ "px, "
+                ++ String.fromFloat -model.scroll.top
+                ++ "px)"
+            )
+        ]
+        [ H.pre [ A.class "p-2 m-0 align-left h-full bg-transparent border-none" ]
+            [ H.code []
+                (model.diff
+                    |> List.map
+                        (\line ->
+                            case line of
+                                Diff.NoChange txt ->
+                                    H.node "no-change" [ A.class "block w-1" ] [ H.text " " ]
+
+                                Diff.Added _ ->
+                                    H.node "line-added" [ A.class "block bg-green-600 w-1" ] [ H.text " " ]
+
+                                Diff.Changed _ _ ->
+                                    H.node "line-changed" [ A.class "block bg-yellow-600 w-1" ] [ H.text " " ]
+
+                                Diff.Removed _ ->
+                                    H.node "line-removed" [ A.class "block bg-red-600 w-1" ] [ H.text " " ]
+                        )
+                )
+            ]
+        ]
 
 
 fontHeight : Float
