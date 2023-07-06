@@ -7,6 +7,8 @@ import Html as H
 import Html.Attributes as A
 import Html.Events as E
 import Json.Decode as J
+import Lsp.Client
+import Lsp.DocumentChange exposing (DocumentChangeParams)
 
 
 type Msg
@@ -31,6 +33,7 @@ type alias Model =
     , cursor : Cursor
     , suggestions : List ( String, String )
     , adorns : List Adorn
+    , version : Int
     }
 
 
@@ -91,6 +94,7 @@ init _ =
       , cursor = { x = 0, y = 0, col = 0, row = 0, pos = 0 }
       , suggestions = []
       , adorns = fakeAdorns defaultSrc
+      , version = 1
       }
     , Cmd.none
     )
@@ -131,39 +135,44 @@ update msg model =
             ( { model
                 | text = text
                 , ast = parseHql text
+                , version = model.version + 1
                 , diff =
-                    Debug.log "diff"
-                        (Diff.diffLines model.origText text
-                            |> List.concatMap
-                                (\change ->
-                                    case change of
-                                        Diff.NoChange lines ->
-                                            lines
-                                                |> String.slice 0 -1
-                                                |> String.split "\n"
-                                                |> List.map Diff.NoChange
+                    Diff.diffLines model.origText text
+                        |> List.concatMap
+                            (\change ->
+                                case change of
+                                    Diff.NoChange lines ->
+                                        lines
+                                            |> String.slice 0 -1
+                                            |> String.split "\n"
+                                            |> List.map Diff.NoChange
 
-                                        Diff.Added lines ->
-                                            lines
-                                                |> String.slice 0 -1
-                                                |> String.split "\n"
-                                                |> List.map Diff.Added
+                                    Diff.Added lines ->
+                                        lines
+                                            |> String.slice 0 -1
+                                            |> String.split "\n"
+                                            |> List.map Diff.Added
 
-                                        Diff.Changed _ lines ->
-                                            lines
-                                                |> String.slice 0 -1
-                                                |> String.split "\n"
-                                                |> List.map (Diff.Changed "")
+                                    Diff.Changed _ lines ->
+                                        lines
+                                            |> String.slice 0 -1
+                                            |> String.split "\n"
+                                            |> List.map (Diff.Changed "")
 
-                                        Diff.Removed lines ->
-                                            lines
-                                                |> String.slice 0 -1
-                                                |> String.split "\n"
-                                                |> List.map Diff.Removed
-                                )
-                        )
+                                    Diff.Removed lines ->
+                                        lines
+                                            |> String.slice 0 -1
+                                            |> String.split "\n"
+                                            |> List.map Diff.Removed
+                            )
               }
-            , Cmd.none
+            , Lsp.Client.outgoingMessage
+                (Lsp.DocumentChange.encodeDocumentChangeMessage
+                    { uri = "document-1"
+                    , version = model.version + 1
+                    , text = text
+                    }
+                )
             )
 
         Scroll pos ->

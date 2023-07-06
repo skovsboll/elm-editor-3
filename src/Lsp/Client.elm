@@ -1,7 +1,9 @@
 port module Lsp.Client exposing (..)
 
+import Json.Encode as J
 
-port outgoingMessage : String -> Cmd msg
+
+port outgoingMessage : J.Value -> Cmd msg
 
 
-port incomingMessage : (String -> msg) -> Sub msg
+port incomingMessage : (J.Value -> msg) -> Sub msg

@@ -2,11 +2,12 @@
 const socket = new WebSocket("ws://localhost:3001");
 
 // Set up Elm app.
-const app = Elm.Main.init();
+const app = Elm.Main.init({
+    node: document.getElementById('elm-app')
+});
 
 // Set up ports.
 app.ports.outgoingMessage.subscribe(sendMessageToServer);
-app.ports.incomingMessage.subscribe(handleMessageFromServer);
 
 // Send a message to the LSP server.
 function sendMessageToServer(message) {
