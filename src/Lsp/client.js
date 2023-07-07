@@ -1,5 +1,5 @@
 // Connect to the WebSocket server.
-const socket = new WebSocket("ws://localhost:3001");
+const socket = new WebSocket("wss://localhost:3000/api/v1/humio-lsp-raw");
 
 // Set up Elm app.
 const app = Elm.Main.init({
@@ -19,12 +19,12 @@ function sendMessageToServer(message) {
 }
 
 // Handle incoming messages from the WebSocket and send them to Elm.
-socket.onmessage = function(event) {
+socket.onmessage = function (event) {
     app.ports.incomingMessage.send(event.data);
 };
 
 // Initialize the LSP handshake when the WebSocket connection is established.
-socket.onopen = function() {
+socket.onopen = function () {
     const initializeParams = {
         jsonrpc: '2.0',
         id: 1,

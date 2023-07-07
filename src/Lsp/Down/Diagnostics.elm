@@ -1,4 +1,4 @@
-module Lsp.Diagnostics exposing (Diagnostic, Position, Range, Severity, parseDiagnostics)
+module Lsp.Down.Diagnostics exposing (Diagnostic, Position, Range, Severity, parseDiagnostics)
 
 import Json.Decode as Decode exposing (Decoder)
 

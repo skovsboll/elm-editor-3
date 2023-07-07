@@ -3,7 +3,9 @@ module Diff exposing
     , diffChars, diffLines
     )
 
-{-| AUTHOR: <https://github.com/avh4/elm-diff/tree/1.0.7>
+{-| Original author: avh4
+
+<https://github.com/avh4/elm-diff/tree/1.0.7>
 
 Functions to compare strings to produce a list of changes. This is an
 implementation of the [Hunt-McIlroy](http://en.wikipedia.org/wiki/Hunt%E2%80%93McIlroy_algorithm)
@@ -21,7 +23,6 @@ diff algorithm.
 
 -}
 
-import Debug
 import Dict exposing (Dict)
 import List
 import Maybe
