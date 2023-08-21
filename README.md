@@ -19,7 +19,7 @@ Keep overlays in sync when scrolling:
 - Syntax highlighting layer
 - Autocomplete layer (press ctrl+space)
 - Error overlay (squigly lines)
-- Diff gutter
+- Gutter with line numbers and diff
 
 
 ## LSP support
