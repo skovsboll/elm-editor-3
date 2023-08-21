@@ -1,2 +1,7 @@
 build/
 elm-stuff/
+.DS_Store
+node_modules/
+res/.DS_Store
+yarn.lock
+
