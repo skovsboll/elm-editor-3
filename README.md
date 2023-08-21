@@ -25,7 +25,7 @@ Keep overlays in sync when scrolling:
 ## LSP support
 
 First two message types are implemented (Down/Diagnostics and Up/DocumentChange). 
-Help appreciated. See [messate-types-to-be-supported.txt](src/Lsp/messate-types-to-be-supported.txt)
+Help appreciated. See [messate-types-to-be-supported.txt](https://github.com/skovsboll/elm-editor-3/blob/main/src/Lsp/message-types-to-be-supported.txt)
 
 
 ## Developer getting started
