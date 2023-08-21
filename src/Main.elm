@@ -8,7 +8,7 @@ import Html.Attributes as A
 import Html.Events as E
 import Json.Decode as J
 import Lsp.Ports
-import Lsp.Up.DocumentChange as DocumentChange exposing (DocumentChangeParams)
+import Lsp.Up.DocumentChange as DocumentChange
 
 
 type Msg
@@ -16,12 +16,20 @@ type Msg
     | Move Int Int
     | Scroll ScrollPos
     | ToggleSuggestions
+    | NextSuggestion
+    | PrevSuggestion
+    | InsertSuggestion
+    | Noop
 
 
 type alias ScrollPos =
     { top : Float
     , left : Float
     }
+
+
+type alias Suggestion =
+    { icon : String, code : String }
 
 
 type alias Model =
@@ -31,7 +39,7 @@ type alias Model =
     , ast : List Line
     , scroll : ScrollPos
     , cursor : Cursor
-    , suggestions : List ( String, String )
+    , suggestions : Maybe ( List Suggestion, Suggestion, List Suggestion )
     , adorns : List Adorn
     , version : Int
     }
@@ -92,7 +100,7 @@ init _ =
       , scroll = scrollTop
       , ast = parseHql defaultSrc
       , cursor = { x = 0, y = 0, col = 0, row = 0, pos = 0 }
-      , suggestions = []
+      , suggestions = Nothing
       , adorns = fakeAdorns defaultSrc
       , version = 1
       }
@@ -128,53 +136,58 @@ scrollTop =
     }
 
 
+updateText : String -> Model -> ( Model, Cmd Msg )
+updateText text model =
+    ( { model
+        | text = text
+        , ast = parseHql text
+        , version = model.version + 1
+        , adorns = fakeAdorns text
+        , diff =
+            Diff.diffLines model.origText text
+                |> List.concatMap
+                    (\change ->
+                        case change of
+                            Diff.NoChange lines ->
+                                lines
+                                    |> String.slice 0 -1
+                                    |> String.split "\n"
+                                    |> List.map Diff.NoChange
+
+                            Diff.Added lines ->
+                                lines
+                                    |> String.slice 0 -1
+                                    |> String.split "\n"
+                                    |> List.map Diff.Added
+
+                            Diff.Changed _ lines ->
+                                lines
+                                    |> String.slice 0 -1
+                                    |> String.split "\n"
+                                    |> List.map (Diff.Changed "")
+
+                            Diff.Removed lines ->
+                                lines
+                                    |> String.slice 0 -1
+                                    |> String.split "\n"
+                                    |> List.map Diff.Removed
+                    )
+      }
+    , Lsp.Ports.outgoingMessage
+        (DocumentChange.encodeDocumentChangeMessage
+            { uri = "document-1"
+            , version = model.version + 1
+            , text = text
+            }
+        )
+    )
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         Input text ->
-            ( { model
-                | text = text
-                , ast = parseHql text
-                , version = model.version + 1
-                , adorns = fakeAdorns text
-                , diff =
-                    Diff.diffLines model.origText text
-                        |> List.concatMap
-                            (\change ->
-                                case change of
-                                    Diff.NoChange lines ->
-                                        lines
-                                            |> String.slice 0 -1
-                                            |> String.split "\n"
-                                            |> List.map Diff.NoChange
-
-                                    Diff.Added lines ->
-                                        lines
-                                            |> String.slice 0 -1
-                                            |> String.split "\n"
-                                            |> List.map Diff.Added
-
-                                    Diff.Changed _ lines ->
-                                        lines
-                                            |> String.slice 0 -1
-                                            |> String.split "\n"
-                                            |> List.map (Diff.Changed "")
-
-                                    Diff.Removed lines ->
-                                        lines
-                                            |> String.slice 0 -1
-                                            |> String.split "\n"
-                                            |> List.map Diff.Removed
-                            )
-              }
-            , Lsp.Ports.outgoingMessage
-                (DocumentChange.encodeDocumentChangeMessage
-                    { uri = "document-1"
-                    , version = model.version + 1
-                    , text = text
-                    }
-                )
-            )
+            updateText text model
 
         Scroll pos ->
             ( { model | scroll = pos }, Cmd.none )
@@ -184,24 +197,65 @@ update msg model =
 
         ToggleSuggestions ->
             case model.suggestions of
-                [] ->
+                Nothing ->
                     ( { model
                         | suggestions =
-                            [ ( "✸", "timechart()" )
-                            , ( "◎", "parseCsv()" )
-                            , ( "✢", "mjallo()" )
-                            , ( "❍", "djallo()" )
-                            ]
+                            Just
+                                ( []
+                                , { icon = "✸", code = "timechart()" }
+                                , [ { icon = "◎", code = "parseCsv()" }
+                                  , { icon = "✢", code = "mjallo()" }
+                                  , { icon = "❍", code = "djallo()" }
+                                  ]
+                                )
                       }
                     , Cmd.none
                     )
 
                 _ ->
                     ( { model
-                        | suggestions = []
+                        | suggestions = Nothing
                       }
                     , Cmd.none
                     )
+
+        PrevSuggestion ->
+            case model.suggestions of
+                Just ( prev :: ptail, current, next ) ->
+                    ( { model | suggestions = Just ( ptail, prev, current :: next ) }, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        NextSuggestion ->
+            case model.suggestions of
+                Just ( prev, current, next :: ntail ) ->
+                    ( { model | suggestions = Just ( current :: prev, next, ntail ) }, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        InsertSuggestion ->
+            case model.suggestions of
+                Just ( _, current, _ ) ->
+                    let
+                        newText : String
+                        newText =
+                            String.slice 0 model.cursor.pos model.text
+                                ++ current.code
+                                ++ String.slice model.cursor.pos -1 model.text
+                                |> Debug.log "newText"
+
+                        ( newModel, cmd ) =
+                            updateText newText model
+                    in
+                    ( { newModel | suggestions = Nothing }, cmd )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        Noop ->
+            ( model, Cmd.none )
 
 
 subscriptions : Model -> Sub Msg
@@ -209,16 +263,65 @@ subscriptions _ =
     Sub.none
 
 
-keyDecoder : J.Decoder Msg
-keyDecoder =
+keyDecoder : Model -> J.Decoder { message : Msg, stopPropagation : Bool, preventDefault : Bool }
+keyDecoder model =
+    let
+        simpleMessage msg =
+            { message = msg
+            , stopPropagation = False
+            , preventDefault = False
+            }
+
+        noBubble msg =
+            { message = msg
+            , stopPropagation = True
+            , preventDefault = True
+            }
+    in
     J.map4
         (\key ctrl start end ->
+            let
+                _ =
+                    Debug.log "key" key
+            in
             case ( key, ctrl ) of
                 ( " ", True ) ->
-                    ToggleSuggestions
+                    simpleMessage ToggleSuggestions
+
+                ( "Enter", False ) ->
+                    case model.suggestions of
+                        Nothing ->
+                            simpleMessage Noop
+
+                        _ ->
+                            noBubble InsertSuggestion
+
+                ( "Escape", False ) ->
+                    case model.suggestions of
+                        Nothing ->
+                            simpleMessage Noop
+
+                        _ ->
+                            simpleMessage ToggleSuggestions
+
+                ( "ArrowUp", False ) ->
+                    case model.suggestions of
+                        Nothing ->
+                            simpleMessage Noop
+
+                        _ ->
+                            noBubble PrevSuggestion
+
+                ( "ArrowDown", False ) ->
+                    case model.suggestions of
+                        Nothing ->
+                            simpleMessage Noop
+
+                        _ ->
+                            noBubble NextSuggestion
 
                 _ ->
-                    Move start end
+                    simpleMessage (Move start end)
         )
         (J.field "key" J.string)
         (J.field "ctrlKey" J.bool)
@@ -256,10 +359,10 @@ viewTextArea : Model -> H.Html Msg
 viewTextArea model =
     H.textarea
         [ styles
-        , E.on "keyup" keyDecoder
-        , E.on "click" keyDecoder
+        , E.custom "keyup" (keyDecoder model)
+        , E.custom "click" (keyDecoder model)
         , A.spellcheck False
-        , A.class "h-full z-0 p-2 pl-[48px] caret-red-500 text-transparent resize-none"
+        , A.class "absolute z-0 h-full p-2 pl-[48px] caret-red-500 text-transparent resize-none"
         , E.onInput Input
         , E.on "scroll" parseScrollEvent
         ]
@@ -271,7 +374,7 @@ viewSyntaxOverlay : Model -> H.Html msg
 viewSyntaxOverlay model =
     H.node "syntax"
         [ styles
-        , A.class "block absolute z-10 top-0 left-0 z-1 pointer-events-none will-change-transform h-auto"
+        , A.class "block absolute z-10 top-0 left-0 pointer-events-none will-change-transform h-auto transition-transform"
         , A.style "transform"
             ("translate("
                 ++ String.fromFloat -model.scroll.left
@@ -302,17 +405,20 @@ viewSyntaxOverlay model =
 viewAutoCompleteOverlay : Model -> H.Html Msg
 viewAutoCompleteOverlay model =
     case model.suggestions of
-        [] ->
+        Nothing ->
             H.node "no-suggestions" [] []
 
-        items ->
+        Just ( pre, selected, post ) ->
             H.node "auto-complete"
-                [ A.class "absolute z-50 h-32 bg-slate-700 w-64 shadow rounded border border-slate-600 font-mono tracking-normal whitespace-pre leading-snug text-sm p-1"
+                [ A.class "block absolute z-50 h-32 bg-slate-700 w-64 shadow rounded border border-slate-600 font-mono tracking-normal whitespace-pre leading-snug text-sm p-1"
                 , A.style "left" (String.fromFloat (64 + model.cursor.x) ++ "px")
                 , A.style "top" (String.fromFloat (model.cursor.y - model.scroll.top) ++ "px")
                 ]
                 [ H.ul [ A.class "text-white overflow-scroll h-full" ]
-                    (items |> List.map (\( icon, code ) -> H.li [] [ H.text icon, H.text " ", H.text code ]))
+                    ((pre |> List.reverse |> List.map (\{ icon, code } -> H.li [] [ H.text icon, H.text " ", H.text code ]))
+                        ++ [ H.li [ A.class "bg-gray-600" ] [ H.text selected.icon, H.text " ", H.text selected.code ] ]
+                        ++ (post |> List.map (\{ icon, code } -> H.li [] [ H.text icon, H.text " ", H.text code ]))
+                    )
                 ]
 
 
@@ -320,7 +426,7 @@ viewErrorOverlay : Model -> H.Html msg
 viewErrorOverlay model =
     H.node "errors"
         [ styles
-        , A.class "block absolute top-0 left-0 z-20 pointer-events-none will-change-transform h-auto"
+        , A.class "block absolute top-0 left-0 z-20 pointer-events-none will-change-transform h-auto transition-transform"
         , A.style "transform"
             ("translate("
                 ++ String.fromFloat -model.scroll.left
@@ -358,7 +464,7 @@ viewDiffGutter : Model -> H.Html msg
 viewDiffGutter model =
     H.node "diff"
         [ styles
-        , A.class "block absolute top-0 left-8 z-50 pointer-events-none will-change-transform h-auto"
+        , A.class "block absolute z-50 top-0 left-8 pointer-events-none will-change-transform h-auto transition-transform"
         , A.style "transform"
             ("translate("
                 ++ String.fromFloat -model.scroll.left
@@ -380,26 +486,27 @@ viewDiffGutter model =
                                 Diff.Added _ ->
                                     [ H.node "line-added" [ A.class "block bg-green-600 w-1" ] [ H.text " " ] ]
 
-                                Diff.Changed before after ->
+                                Diff.Changed _ _ ->
                                     [ H.button
                                         [ A.id "a"
                                         , A.class "block bg-yellow-600 w-1"
                                         , A.attribute "popovertarget" "b"
                                         ]
                                         [ H.text " " ]
-                                    , H.node "pop-over"
-                                        [ A.id "b"
-                                        , A.class "bottom-[calc(anchor(bottom))] left-[anchor(center)] translate-[-50% 0]"
-                                        , A.attribute "popover" "auto"
-                                        , A.attribute "anchor" "a"
-                                        ]
-                                        [ H.node "diff"
-                                            [ A.class "flex flex-col" ]
-                                            [ H.node "diff-before" [ A.class "text-red-500" ] [ H.text before ]
-                                            , H.node "diff-after" [ A.class "text-green-500" ] [ H.text after ]
-                                            , H.button [ A.class "button" ] [ H.text "Revert" ]
-                                            ]
-                                        ]
+
+                                    --, H.node "pop-over"
+                                    --    [ A.id "b"
+                                    --    , A.class "block bottom-[calc(anchor(bottom))] left-[anchor(center)] translate-[-50% 0]"
+                                    --    , A.attribute "popover" "auto"
+                                    --    , A.attribute "anchor" "a"
+                                    --    ]
+                                    --    [ H.node "diff"
+                                    --        [ A.class "block flex flex-col" ]
+                                    --        [ H.node "diff-before" [ A.class "text-red-500" ] [ H.text before ]
+                                    --        , H.node "diff-after" [ A.class "text-green-500" ] [ H.text after ]
+                                    --        , H.button [ A.class "button" ] [ H.text "Revert" ]
+                                    --        ]
+                                    --    ]
                                     ]
 
                                 Diff.Removed _ ->
