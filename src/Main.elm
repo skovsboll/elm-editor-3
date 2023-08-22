@@ -8,6 +8,7 @@ import Html.Attributes as A
 import Html.Events as E
 import Json.Decode as J
 import Layers.Adorns exposing (Adorn)
+import Layers.DiffGutter
 import Layers.Types exposing (Cursor, ScrollPos)
 import Lsp.Ports
 import Lsp.Up.DocumentChange as DocumentChange
@@ -305,8 +306,8 @@ view model =
     H.node "editor"
         [ A.class "h-full w-full block relative overflow-hidden p-0 m-0 align-left bg-stone-800" ]
         [ viewTextArea model
-        , viewDiffGutter model
-        , Layers.Adorns.view model
+        , Layers.DiffGutter.view model styles
+        , Layers.Adorns.view model styles
         , viewSyntaxOverlay model
         , viewAutoCompleteOverlay model
         ]
@@ -372,107 +373,12 @@ viewAutoCompleteOverlay model =
                 , A.style "top" (String.fromFloat (model.cursor.y - model.scroll.top) ++ "px")
                 ]
                 [ H.ul [ A.class "text-white overflow-scroll h-full" ]
-                    ([ pre |> List.reverse |> List.map (\{ icon, code } -> H.li [] [ H.text icon, H.text " ", H.text code ])
-                     , H.li [ A.class "bg-gray-600" ] [ H.text selected.icon, H.text " ", H.text selected.code ]
-                     ]
+                    ((pre |> List.reverse |> List.map (\{ icon, code } -> H.li [] [ H.text icon, H.text " ", H.text code ]))
+                        ++ [ H.li [ A.class "bg-gray-600" ] [ H.text selected.icon, H.text " ", H.text selected.code ]
+                           ]
                         ++ (post |> List.map (\{ icon, code } -> H.li [] [ H.text icon, H.text " ", H.text code ]))
                     )
                 ]
-
-
-
---viewErrorOverlay : Model -> H.Html msg
---viewErrorOverlay model =
---    H.node "errors"
---        [ styles
---        , A.class "block absolute top-0 left-0 z-20 pointer-events-none will-change-transform h-auto transition-transform"
---        , A.style "transform"
---            ("translate("
---                ++ String.fromFloat -model.scroll.left
---                ++ "px, "
---                ++ String.fromFloat -model.scroll.top
---                ++ "px)"
---            )
---        ]
---        [ H.pre [ A.class "p-2 m-0 align-left h-full bg-transparent border-none" ]
---            [ H.code []
---                (model.adorns
---                    |> List.map
---                        (\fragments ->
---                            H.node
---                                "adorn-line"
---                                [ A.class "block pl-[40px] translate-y-[0.5rem]" ]
---                                (fragments
---                                    |> List.map
---                                        (\fragment ->
---                                            case fragment of
---                                                Error txt ->
---                                                    H.node "error" [ A.class "text-red-500 " ] [ String.repeat (String.length txt) "~" |> H.text ]
---                                                Normal txt ->
---                                                    H.node "no-error" [] [ String.repeat (String.length txt) " " |> H.text ]
---                                        )
---                                )
---                        )
---                )
---            ]
---        ]
-
-
-viewDiffGutter : Model -> H.Html msg
-viewDiffGutter model =
-    H.node "diff"
-        [ styles
-        , A.class "block absolute z-50 top-0 left-8 pointer-events-none will-change-transform h-auto transition-transform"
-        , A.style "transform"
-            ("translate("
-                ++ String.fromFloat -model.scroll.left
-                ++ "px, "
-                ++ String.fromFloat -model.scroll.top
-                ++ "px)"
-            )
-        ]
-        [ H.pre [ A.class "p-2 m-0 align-left h-full bg-transparent border-none" ]
-            [ H.code []
-                (model.diff
-                    |> List.concatMap
-                        (\line ->
-                            case line of
-                                Diff.NoChange _ ->
-                                    [ H.node "no-change" [ A.class "block w-1" ] [ H.text " " ]
-                                    ]
-
-                                Diff.Added _ ->
-                                    [ H.node "line-added" [ A.class "block bg-green-600 w-1" ] [ H.text " " ] ]
-
-                                Diff.Changed _ _ ->
-                                    [ H.button
-                                        [ A.id "a"
-                                        , A.class "block bg-yellow-600 w-1"
-                                        , A.attribute "popovertarget" "b"
-                                        ]
-                                        [ H.text " " ]
-
-                                    --, H.node "pop-over"
-                                    --    [ A.id "b"
-                                    --    , A.class "block bottom-[calc(anchor(bottom))] left-[anchor(center)] translate-[-50% 0]"
-                                    --    , A.attribute "popover" "auto"
-                                    --    , A.attribute "anchor" "a"
-                                    --    ]
-                                    --    [ H.node "diff"
-                                    --        [ A.class "block flex flex-col" ]
-                                    --        [ H.node "diff-before" [ A.class "text-red-500" ] [ H.text before ]
-                                    --        , H.node "diff-after" [ A.class "text-green-500" ] [ H.text after ]
-                                    --        , H.button [ A.class "button" ] [ H.text "Revert" ]
-                                    --        ]
-                                    --    ]
-                                    ]
-
-                                Diff.Removed _ ->
-                                    [ H.node "line-removed" [ A.class "block bg-red-600 w-1" ] [ H.text " " ] ]
-                        )
-                )
-            ]
-        ]
 
 
 fontHeight : Float

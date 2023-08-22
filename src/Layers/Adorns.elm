@@ -14,7 +14,7 @@ type AdornFragment
     | Error String
 
 
-view : { scroll : ScrollPos, adorns : List Adorn } -> H.Attribute msg -> H.Html msg
+view : { a | scroll : ScrollPos, adorns : List Adorn } -> H.Attribute msg -> H.Html msg
 view model styles =
     H.node "errors"
         [ styles
