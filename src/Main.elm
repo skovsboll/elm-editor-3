@@ -1,16 +1,17 @@
 module Main exposing (main)
 
 import Browser
+import Cursor
 import Diff exposing (Change)
 import Hql.Parser exposing (..)
 import Html as H
 import Html.Attributes as A
-import Html.Events as E
 import Json.Decode as J
 import Layers.Adorns exposing (Adorn)
 import Layers.AutoComplete exposing (Suggestion)
 import Layers.DiffGutter
 import Layers.Syntax
+import Layers.TextArea
 import Layers.Types exposing (Cursor, ScrollPos)
 import Lsp.Ports
 import Lsp.Up.DocumentChange as DocumentChange
@@ -149,7 +150,7 @@ update msg model =
             ( { model | scroll = pos }, Cmd.none )
 
         Move _ end ->
-            ( { model | cursor = calculateCursorCoordinates model.text end }, Cmd.none )
+            ( { model | cursor = Cursor.fromTextPosition model.text end }, Cmd.none )
 
         ToggleSuggestions ->
             case model.suggestions of
@@ -217,6 +218,24 @@ update msg model =
 subscriptions : Model -> Sub Msg
 subscriptions _ =
     Sub.none
+
+
+
+--
+-- VIEW
+--
+
+
+view : Model -> H.Html Msg
+view model =
+    H.node "editor"
+        [ A.class "h-full w-full block relative overflow-hidden p-0 m-0 align-left bg-stone-800" ]
+        [ Layers.TextArea.view model styles (keyDecoder model) parseScrollEvent Input
+        , Layers.DiffGutter.view model styles
+        , Layers.Adorns.view model styles
+        , Layers.Syntax.view model styles
+        , Layers.AutoComplete.view model
+        ]
 
 
 keyDecoder : Model -> J.Decoder { message : Msg, stopPropagation : Bool, preventDefault : Bool }
@@ -291,77 +310,6 @@ parseScrollEvent =
         (J.at [ "target", "scrollTop" ] J.float)
         (J.at [ "target", "scrollLeft" ] J.float)
         |> J.map Scroll
-
-
-
---
--- VIEW
---
-
-
-view : Model -> H.Html Msg
-view model =
-    H.node "editor"
-        [ A.class "h-full w-full block relative overflow-hidden p-0 m-0 align-left bg-stone-800" ]
-        [ viewTextArea model
-        , Layers.DiffGutter.view model styles
-        , Layers.Adorns.view model styles
-        , Layers.Syntax.view model styles
-        , Layers.AutoComplete.view model
-        ]
-
-
-viewTextArea : Model -> H.Html Msg
-viewTextArea model =
-    H.textarea
-        [ styles
-        , E.custom "keyup" (keyDecoder model)
-        , E.custom "click" (keyDecoder model)
-        , A.spellcheck False
-        , A.class "absolute z-0 h-full p-2 pl-[48px] caret-red-500 text-transparent resize-none"
-        , E.onInput Input
-        , E.on "scroll" parseScrollEvent
-        ]
-        [ H.text model.text
-        ]
-
-
-fontHeight : Float
-fontHeight =
-    22.0
-
-
-fontWidth : Float
-fontWidth =
-    9.6
-
-
-calculateCursorCoordinates : String -> Int -> Cursor
-calculateCursorCoordinates text position =
-    let
-        lines =
-            text
-                |> String.left position
-                |> String.split "\n"
-
-        row =
-            lines |> List.length
-
-        y =
-            toFloat row * fontHeight - 10
-
-        col =
-            case List.reverse lines of
-                hd :: _ ->
-                    String.length hd + 1
-
-                [] ->
-                    0
-
-        x =
-            toFloat (col - 1) * fontWidth
-    in
-    { x = x, y = y, row = row, col = col, pos = position }
 
 
 
