@@ -15,17 +15,20 @@ import Layers.TextArea
 import Layers.Types exposing (Cursor, ScrollPos)
 import Lsp.Ports
 import Lsp.Up.DocumentChange as DocumentChange
+import Lsp.Up.Initialize as Initialize
 
 
 type Msg
-    = Input String
+    = Noop
+    | Input String
     | Move Int Int
     | Scroll ScrollPos
     | ToggleSuggestions
     | NextSuggestion
     | PrevSuggestion
     | InsertSuggestion
-    | Noop
+    | WebSocketConnectionReady
+    | LspMessageReceived String
 
 
 type alias Model =
@@ -211,13 +214,38 @@ update msg model =
                 _ ->
                     ( model, Cmd.none )
 
+        WebSocketConnectionReady ->
+            ( model
+            , Lsp.Ports.outgoingMessage
+                (Initialize.toString
+                    { processId = Nothing
+                    , rootUri = Nothing
+                    , capabilities =
+                        { textDocument =
+                            { completion =
+                                { completionItem = { snippetSupport = False } }
+                            }
+                        , workspace =
+                            { workspaceFolders = False }
+                        }
+                    , trace = ""
+                    }
+                )
+            )
+
+        LspMessageReceived _ ->
+            ( model, Cmd.none )
+
         Noop ->
             ( model, Cmd.none )
 
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    Sub.none
+    Sub.batch
+        [ Lsp.Ports.webSocketReady (always WebSocketConnectionReady)
+        , Lsp.Ports.incomingMessage LspMessageReceived
+        ]
 
 
 
