@@ -15,6 +15,7 @@ import Json.Encode as E
 type alias InitializeParams =
     { processId : Maybe Int
     , rootUri : Maybe String
+    , id : Int
     , capabilities : ClientCapabilities
     , trace : String
     }
@@ -47,6 +48,7 @@ encode params =
     E.object
         [ ( "jsonrpc", E.string "2.0" )
         , ( "method", E.string "initialize" )
+        , ( "id", E.int params.id )
         , ( "params", initializeParamsEncoder params )
         ]
 

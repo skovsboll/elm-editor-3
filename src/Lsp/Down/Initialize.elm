@@ -1,6 +1,13 @@
-module Lsp.Down.InitializeResults exposing (CompletionProvider, InitializeResult, ServerCapabilities, SignatureHelpProvider, initializeResultDecoder)
+module Lsp.Down.Initialize exposing (CompletionProvider, InitializeResult, ServerCapabilities, SignatureHelpProvider, decoder)
 
 import Json.Decode as Decode exposing (Decoder, bool, field, int, string)
+
+
+type alias Result =
+    { jsonRpcVersion : String
+    , id : Int
+    , result : InitializeResult
+    }
 
 
 type alias InitializeResult =
@@ -13,8 +20,6 @@ type alias ServerCapabilities =
     , hoverProvider : Maybe Bool
     , completionProvider : Maybe CompletionProvider
     , signatureHelpProvider : Maybe SignatureHelpProvider
-
-    -- ... potentially other capabilities
     }
 
 
@@ -28,6 +33,14 @@ type alias SignatureHelpProvider =
     { triggerCharacters : List String
     , retriggerCharacters : List String
     }
+
+
+decoder : Decoder Result
+decoder =
+    Decode.map3 Result
+        (field "jsonrpc" string)
+        (field "id" int)
+        (field "result" initializeResultDecoder)
 
 
 initializeResultDecoder : Decoder InitializeResult

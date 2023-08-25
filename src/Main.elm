@@ -7,14 +7,17 @@ import Hql.Parser exposing (..)
 import Html as H
 import Html.Attributes as A
 import Json.Decode as J
+import Json.Encode as E
 import Layers.Adorns exposing (Adorn)
 import Layers.AutoComplete exposing (Suggestion)
 import Layers.DiffGutter
 import Layers.Syntax
 import Layers.TextArea
 import Layers.Types exposing (Cursor, ScrollPos)
+import Lsp.Down.CodeAction
+import Lsp.Down.Completion
 import Lsp.Ports
-import Lsp.Up.DocumentChange as DocumentChange
+import Lsp.Up.DidChange
 import Lsp.Up.Initialize as Initialize
 
 
@@ -133,14 +136,21 @@ updateText text model =
                                     |> List.map Diff.Removed
                     )
       }
-    , Lsp.Ports.outgoingMessage
-        (DocumentChange.toString
+    , sendLsp
+        (Lsp.Up.DidChange.encode
             { uri = "document-1"
             , version = model.version + 1
             , text = text
             }
         )
     )
+
+
+sendLsp : E.Value -> Cmd Msg
+sendLsp json =
+    json
+        |> E.encode 0
+        |> Lsp.Ports.outgoingMessage
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -216,10 +226,11 @@ update msg model =
 
         WebSocketConnectionReady ->
             ( model
-            , Lsp.Ports.outgoingMessage
-                (Initialize.toString
+            , sendLsp
+                (Initialize.encode
                     { processId = Nothing
                     , rootUri = Nothing
+                    , id = 0
                     , capabilities =
                         { textDocument =
                             { completion =
@@ -234,7 +245,7 @@ update msg model =
             )
 
         LspMessageReceived message ->
-            parseMessage message
+            parseMessage model message
 
         Noop ->
             ( model, Cmd.none )
@@ -242,9 +253,15 @@ update msg model =
 
 parseMessage : Model -> String -> ( Model, Cmd Msg )
 parseMessage model message =
-    J.oneOf [ Lsp.Down.CompletionResult.decoder ]
-        |> J.decodeString message
-        |> J.map (\msg -> ( model, Cmd.none ))
+    J.decodeString
+        (J.oneOf
+            [ Lsp.Down.Completion.decoder
+            , Lsp.Down.CodeAction.decoder
+            ]
+        )
+        message
+        |> Result.map (always ( model, Cmd.none ))
+        |> Result.withDefault ( model, Cmd.none )
 
 
 subscriptions : Model -> Sub Msg
