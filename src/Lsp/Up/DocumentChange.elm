@@ -1,4 +1,4 @@
-module Lsp.Up.DocumentChange exposing (DocumentChangeParams, encodeDocumentChangeMessage)
+module Lsp.Up.DocumentChange exposing (DocumentChangeParams, toString)
 
 import Json.Encode as E
 
@@ -10,8 +10,8 @@ type alias DocumentChangeParams =
     }
 
 
-encodeDocumentChangeMessage : DocumentChangeParams -> String
-encodeDocumentChangeMessage params =
+toString : DocumentChangeParams -> String
+toString params =
     let
         uriObject : E.Value
         uriObject =

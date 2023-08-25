@@ -1,4 +1,4 @@
-module Lsp.Down.Completion exposing (..)
+module Lsp.Down.CompletionResult exposing (CompletionItem, CompletionList, CompletionResult, decoder)
 
 import Json.Decode as Decode exposing (Decoder, bool, field, int, list, string)
 
@@ -15,6 +15,21 @@ type alias CompletionItem =
 
     -- ... you might want to add more fields here depending on the details you want
     }
+
+
+type alias CompletionResult =
+    { jsonRpcVersion : String
+    , id : String
+    , result : CompletionList
+    }
+
+
+decoder : Decoder CompletionResult
+decoder =
+    Decode.map3 CompletionResult
+        (field "jsonrpc" string)
+        (field "id" string)
+        (field "result" completionListDecoder)
 
 
 completionListDecoder : Decoder CompletionList

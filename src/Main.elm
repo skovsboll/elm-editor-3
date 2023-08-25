@@ -134,7 +134,7 @@ updateText text model =
                     )
       }
     , Lsp.Ports.outgoingMessage
-        (DocumentChange.encodeDocumentChangeMessage
+        (DocumentChange.toString
             { uri = "document-1"
             , version = model.version + 1
             , text = text
@@ -233,11 +233,18 @@ update msg model =
                 )
             )
 
-        LspMessageReceived _ ->
-            ( model, Cmd.none )
+        LspMessageReceived message ->
+            parseMessage message
 
         Noop ->
             ( model, Cmd.none )
+
+
+parseMessage : Model -> String -> ( Model, Cmd Msg )
+parseMessage model message =
+    J.oneOf [ Lsp.Down.CompletionResult.decoder ]
+        |> J.decodeString message
+        |> J.map (\msg -> ( model, Cmd.none ))
 
 
 subscriptions : Model -> Sub Msg
