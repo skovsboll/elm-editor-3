@@ -1,4 +1,4 @@
-module Lsp.Up.DidChange exposing (DocumentChangeParams, encoder)
+module Lsp.Up.DidChange exposing (DocumentChangeParams, encode)
 
 import Json.Encode as E
 
@@ -10,8 +10,8 @@ type alias DocumentChangeParams =
     }
 
 
-encoder : DocumentChangeParams -> E.Value
-encoder params =
+encode : DocumentChangeParams -> E.Value
+encode params =
     E.object
         [ ( "jsonrpc", E.string "2.0" )
         , ( "method", E.string "textDocument/didChange" )

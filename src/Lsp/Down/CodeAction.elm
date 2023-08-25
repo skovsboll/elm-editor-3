@@ -1,9 +1,11 @@
 module Lsp.Down.CodeAction exposing (..)
 
 import Json.Decode as Decode exposing (Decoder, field, string)
-import Lsp.Down.Diagnostics exposing (Range)
 import Lsp.Down.Hover exposing (rangeDecoder)
-import Lsp.Down.Position exposing (TextDocumentIdentifier, textDocumentIdentifierDecoder)
+
+
+type alias CodeActionResult =
+    {}
 
 
 type alias CodeActionRequest =
@@ -23,6 +25,14 @@ type alias Diagnostic =
 
     -- ... potentially other fields like severity, etc.
     }
+
+
+decoder : Decoder CodeActionResult
+decoder =
+    Decode.map3 CodeActionResult
+        (field "jsonrpc" string)
+        (field "id" string)
+        (field "result" completionListDecoder)
 
 
 codeActionRequestDecoder : Decoder CodeActionRequest

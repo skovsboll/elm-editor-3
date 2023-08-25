@@ -1,20 +1,18 @@
-module Lsp.Up.Completion exposing (CompletionParams, encoder)
+module Lsp.Up.Completion exposing (CompletionParams, encode)
 
 import Json.Encode as E
-import Lsp.Up.Context exposing (Context)
-import Lsp.Up.Position exposing (Position)
+import Lsp.Diagnostics
 
 
 type alias CompletionParams =
     { uri : String
     , id : Int
-    , position : Position
-    , context : Context
+    , position : Lsp.Diagnostics.Position
     }
 
 
-encoder : CompletionParams -> E.Value
-encoder params =
+encode : CompletionParams -> E.Value
+encode params =
     let
         uriObject : E.Value
         uriObject =
@@ -24,8 +22,7 @@ encoder params =
         paramsObject =
             E.object
                 [ ( "textDocument", uriObject )
-                , ( "position", Lsp.Up.Position.encode params.position )
-                , ( "context", Lsp.Up.Context.encode params.context )
+                , ( "position", Lsp.Diagnostics.encodePosition params.position )
                 ]
     in
     E.object

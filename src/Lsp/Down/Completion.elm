@@ -1,4 +1,4 @@
-module Lsp.Down.CompletionResult exposing (CompletionItem, CompletionList, CompletionResult, decoder)
+module Lsp.Down.Completion exposing (CompletionItem, CompletionList, CompletionResult, decoder)
 
 import Json.Decode as Decode exposing (Decoder, bool, field, int, list, string)
 
