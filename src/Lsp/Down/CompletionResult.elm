@@ -9,11 +9,31 @@ type alias CompletionList =
     }
 
 
+type CompletionKind
+    = Text
+    | Method
+    | Function
+
+
+type alias CompletionDocumentation =
+    { kind : String
+    , value : String
+    }
+
+
+type InsertTextFormat
+    = Plain
+    | Template
+
+
 type alias CompletionItem =
     { label : String
-    , kind : Maybe Int -- The LSP specifies this as an integer, with each number mapping to a specific kind (e.g., 1 for Text, 2 for Method, 3 for Function, etc.)
-
-    -- ... you might want to add more fields here depending on the details you want
+    , kind : CompletionKind
+    , detail : String
+    , documentation : CompletionDocumentation
+    , insertText : String
+    , insertTextFormat : InsertTextFormat
+    , sortText : String
     }
 
 
@@ -32,6 +52,26 @@ decoder =
         (field "result" completionListDecoder)
 
 
+completionKindDecoder : Decoder CompletionKind
+completionKindDecoder =
+    Decode.int
+        |> Decode.andThen
+            (\i ->
+                case i of
+                    1 ->
+                        Decode.succeed Text
+
+                    2 ->
+                        Decode.succeed Method
+
+                    3 ->
+                        Decode.succeed Function
+
+                    _ ->
+                        Decode.fail "Unsupported completion item kind"
+            )
+
+
 completionListDecoder : Decoder CompletionList
 completionListDecoder =
     Decode.map2 CompletionList
@@ -39,8 +79,37 @@ completionListDecoder =
         (field "items" (list completionItemDecoder))
 
 
+documentationDecoder : Decoder CompletionDocumentation
+documentationDecoder =
+    Decode.map2 CompletionDocumentation
+        (field "kind" string)
+        (field "value" string)
+
+
+insertTextFormatDecoder : Decoder InsertTextFormat
+insertTextFormatDecoder =
+    Decode.int
+        |> Decode.andThen
+            (\i ->
+                case i of
+                    1 ->
+                        Decode.succeed Plain
+
+                    2 ->
+                        Decode.succeed Template
+
+                    _ ->
+                        Decode.fail "Unknown insertTextFormat"
+            )
+
+
 completionItemDecoder : Decoder CompletionItem
 completionItemDecoder =
-    Decode.map2 CompletionItem
+    Decode.map7 CompletionItem
         (field "label" string)
-        (field "kind" (Decode.maybe int))
+        (field "kind" completionKindDecoder)
+        (field "detail" string)
+        (field "documentation" documentationDecoder)
+        (field "insertText" string)
+        (field "insertTextFormat" insertTextFormatDecoder)
+        (field "sortText" string)

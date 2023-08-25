@@ -1,4 +1,4 @@
-module Lsp.Up.Completion exposing (CompletionParams, toString)
+module Lsp.Up.Completion exposing (CompletionParams, encoder)
 
 import Json.Encode as E
 import Lsp.Up.Context exposing (Context)
@@ -13,8 +13,8 @@ type alias CompletionParams =
     }
 
 
-toString : CompletionParams -> String
-toString params =
+encoder : CompletionParams -> E.Value
+encoder params =
     let
         uriObject : E.Value
         uriObject =
@@ -34,4 +34,3 @@ toString params =
         , ( "id", E.int params.id )
         , ( "params", paramsObject )
         ]
-        |> E.encode 0

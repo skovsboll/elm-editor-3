@@ -1,10 +1,11 @@
-module Lsp.Up.DidOpenTextDocument exposing (DidOpenTextDocumentParams, TextDocumentItem, didOpenTextDocumentParamsEncoder)
+module Lsp.Up.DidOpen exposing (DidOpenTextDocumentParams, TextDocumentItem, encoder)
 
 import Json.Encode as E
 
 
 type alias DidOpenTextDocumentParams =
     { textDocument : TextDocumentItem
+    , id : Int
     }
 
 
@@ -16,8 +17,18 @@ type alias TextDocumentItem =
     }
 
 
-didOpenTextDocumentParamsEncoder : DidOpenTextDocumentParams -> E.Value
-didOpenTextDocumentParamsEncoder params =
+encoder : DidOpenTextDocumentParams -> E.Value
+encoder params =
+    E.object
+        [ ( "jsonrpc", E.string "2.0" )
+        , ( "method", E.string "textDocument/didOpen" )
+        , ( "id", E.int params.id )
+        , ( "params", paramsEncoder params )
+        ]
+
+
+paramsEncoder : DidOpenTextDocumentParams -> E.Value
+paramsEncoder params =
     E.object
         [ ( "textDocument", textDocumentItemEncoder params.textDocument ) ]
 

@@ -5,11 +5,11 @@ module Lsp.Up.Initialize exposing
     , InitializeParams
     , TextDocumentCapabilities
     , WorkspaceCapabilities
+    , encode
     , initializeParamsEncoder
-    , toString
     )
 
-import Json.Encode as Encode
+import Json.Encode as E
 
 
 type alias InitializeParams =
@@ -42,53 +42,52 @@ type alias WorkspaceCapabilities =
     { workspaceFolders : Bool }
 
 
-toString : InitializeParams -> String
-toString params =
-    Encode.object
-        [ ( "jsonrpc", Encode.string "2.0" )
-        , ( "method", Encode.string "initialize" )
+encode : InitializeParams -> E.Value
+encode params =
+    E.object
+        [ ( "jsonrpc", E.string "2.0" )
+        , ( "method", E.string "initialize" )
         , ( "params", initializeParamsEncoder params )
         ]
-        |> Encode.encode 0
 
 
-initializeParamsEncoder : InitializeParams -> Encode.Value
+initializeParamsEncoder : InitializeParams -> E.Value
 initializeParamsEncoder params =
-    Encode.object
-        [ ( "processId", Maybe.map Encode.int params.processId |> Maybe.withDefault Encode.null )
-        , ( "rootUri", Maybe.map Encode.string params.rootUri |> Maybe.withDefault Encode.null )
+    E.object
+        [ ( "processId", Maybe.map E.int params.processId |> Maybe.withDefault E.null )
+        , ( "rootUri", Maybe.map E.string params.rootUri |> Maybe.withDefault E.null )
         , ( "capabilities", clientCapabilitiesEncoder params.capabilities )
-        , ( "trace", Encode.string params.trace )
+        , ( "trace", E.string params.trace )
         ]
 
 
-clientCapabilitiesEncoder : ClientCapabilities -> Encode.Value
+clientCapabilitiesEncoder : ClientCapabilities -> E.Value
 clientCapabilitiesEncoder capabilities =
-    Encode.object
+    E.object
         [ ( "textDocument", textDocumentCapabilitiesEncoder capabilities.textDocument )
         , ( "workspace", workspaceCapabilitiesEncoder capabilities.workspace )
         ]
 
 
-textDocumentCapabilitiesEncoder : TextDocumentCapabilities -> Encode.Value
+textDocumentCapabilitiesEncoder : TextDocumentCapabilities -> E.Value
 textDocumentCapabilitiesEncoder capabilities =
-    Encode.object
+    E.object
         [ ( "completion", completionCapabilitiesEncoder capabilities.completion ) ]
 
 
-completionCapabilitiesEncoder : CompletionCapabilities -> Encode.Value
+completionCapabilitiesEncoder : CompletionCapabilities -> E.Value
 completionCapabilitiesEncoder capabilities =
-    Encode.object
+    E.object
         [ ( "completionItem", completionItemCapabilitiesEncoder capabilities.completionItem ) ]
 
 
-completionItemCapabilitiesEncoder : CompletionItemCapabilities -> Encode.Value
+completionItemCapabilitiesEncoder : CompletionItemCapabilities -> E.Value
 completionItemCapabilitiesEncoder capabilities =
-    Encode.object
-        [ ( "snippetSupport", Encode.bool capabilities.snippetSupport ) ]
+    E.object
+        [ ( "snippetSupport", E.bool capabilities.snippetSupport ) ]
 
 
-workspaceCapabilitiesEncoder : WorkspaceCapabilities -> Encode.Value
+workspaceCapabilitiesEncoder : WorkspaceCapabilities -> E.Value
 workspaceCapabilitiesEncoder capabilities =
-    Encode.object
-        [ ( "workspaceFolders", Encode.bool capabilities.workspaceFolders ) ]
+    E.object
+        [ ( "workspaceFolders", E.bool capabilities.workspaceFolders ) ]
