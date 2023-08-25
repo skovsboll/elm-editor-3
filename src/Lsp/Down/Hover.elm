@@ -1,7 +1,7 @@
 module Lsp.Down.Hover exposing (..)
 
 import Json.Decode as Decode exposing (Decoder, field, maybe, string)
-import Lsp.Down.Position exposing (Position, positionDecoder)
+import Lsp.Diagnostics exposing (Position, positionDecoder)
 
 
 type alias Hover =

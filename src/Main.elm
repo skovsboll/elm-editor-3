@@ -14,7 +14,6 @@ import Layers.DiffGutter
 import Layers.Syntax
 import Layers.TextArea
 import Layers.Types exposing (Cursor, ScrollPos)
-import Lsp.Down.CodeAction
 import Lsp.Down.Completion
 import Lsp.Ports
 import Lsp.Up.DidChange
@@ -256,7 +255,6 @@ parseMessage model message =
     J.decodeString
         (J.oneOf
             [ Lsp.Down.Completion.decoder
-            , Lsp.Down.CodeAction.decoder
             ]
         )
         message

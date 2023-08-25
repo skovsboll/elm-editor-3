@@ -1,4 +1,4 @@
-module Lsp.Diagnostics exposing (Diagnostic, Position, Range, Severity, diagnosticDecoder, encodeDiagnostics, encodeDiagnosticsContext, encodePosition, encodeRange, parseDiagnostics, textDocumentEncoder)
+module Lsp.Diagnostics exposing (Diagnostic, Position, Range, Severity, diagnosticDecoder, encodeDiagnostics, encodeDiagnosticsContext, encodePosition, encodeRange, parseDiagnostics, positionDecoder, textDocumentEncoder)
 
 import Html.Attributes exposing (disabled)
 import Json.Decode as D exposing (Decoder)
