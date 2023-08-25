@@ -14,7 +14,8 @@ import Layers.DiffGutter
 import Layers.Syntax
 import Layers.TextArea
 import Layers.Types exposing (Cursor, ScrollPos)
-import Lsp.Down.Completion
+import Lsp.Down exposing (MessageType(..))
+import Lsp.Down.Completion as Completion
 import Lsp.Ports
 import Lsp.Up.DidChange
 import Lsp.Up.Initialize as Initialize
@@ -253,13 +254,45 @@ update msg model =
 parseMessage : Model -> String -> ( Model, Cmd Msg )
 parseMessage model message =
     J.decodeString
-        (J.oneOf
-            [ Lsp.Down.Completion.decoder
-            ]
-        )
+        Lsp.Down.messageDecoder
         message
-        |> Result.map (always ( model, Cmd.none ))
+        |> Result.map (updateLspMessage model)
         |> Result.withDefault ( model, Cmd.none )
+
+
+updateLspMessage : Model -> MessageType -> ( Model, Cmd Msg )
+updateLspMessage model msg =
+    case msg of
+        Completion result ->
+            let
+                suggestions : List Suggestion
+                suggestions =
+                    result.result.items |> List.map itemToSuggestion
+
+                modelWithSuggestions : Model
+                modelWithSuggestions =
+                    { model
+                        | suggestions =
+                            case suggestions of
+                                h :: t ->
+                                    Just ( [], h, t )
+
+                                [] ->
+                                    Nothing
+                    }
+            in
+            ( modelWithSuggestions, Cmd.none )
+
+        Hover result ->
+            ( model, Cmd.none )
+
+        Initialize result ->
+            ( model, Cmd.none )
+
+
+itemToSuggestion : Completion.CompletionItem -> Suggestion
+itemToSuggestion item =
+    { icon = "›", code = item.label }
 
 
 subscriptions : Model -> Sub Msg

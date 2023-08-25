@@ -1,6 +1,5 @@
-module Lsp.Diagnostics exposing (Diagnostic, Position, Range, Severity, diagnosticDecoder, encodeDiagnostics, encodeDiagnosticsContext, encodePosition, encodeRange, parseDiagnostics, positionDecoder, textDocumentEncoder)
+module Lsp.Diagnostics exposing (Diagnostic, Position, Range, Severity, diagnosticDecoder, encodeDiagnostics, encodeDiagnosticsContext, encodePosition, encodeRange, positionDecoder, textDocumentEncoder)
 
-import Html.Attributes exposing (disabled)
 import Json.Decode as D exposing (Decoder)
 import Json.Encode as E
 
@@ -59,10 +58,9 @@ encodeRange range =
 
 
 encodeDiagnosticsContext : List Diagnostic -> E.Value
-encodeDiagnosticsContext range =
-    E.array
-        [ ( "start", encodePosition range.start )
-        , ( "end", encodePosition range.end )
+encodeDiagnosticsContext list =
+    E.object
+        [ ( "diagnostics", E.list encodeDiagnostics list )
         ]
 
 

@@ -1,4 +1,4 @@
-module Lsp.Down.Hover exposing (..)
+module Lsp.Down.Hover exposing (Hover, MarkupContent, Range, Result, decoder)
 
 import Json.Decode as Decode exposing (Decoder, field, maybe, string)
 import Lsp.Diagnostics exposing (Position, positionDecoder)
@@ -20,6 +20,21 @@ type alias Range =
     { start : Position
     , end : Position
     }
+
+
+type alias Result =
+    { jsonRpcVersion : String
+    , id : String
+    , result : Hover
+    }
+
+
+decoder : Decoder Result
+decoder =
+    Decode.map3 Result
+        (field "jsonrpc" string)
+        (field "id" string)
+        (field "result" hoverDecoder)
 
 
 hoverDecoder : Decoder Hover

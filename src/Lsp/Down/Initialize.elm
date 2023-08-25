@@ -1,4 +1,4 @@
-module Lsp.Down.Initialize exposing (CompletionProvider, InitializeResult, ServerCapabilities, SignatureHelpProvider, decoder)
+module Lsp.Down.Initialize exposing (CompletionProvider, InitializeResult, Result, ServerCapabilities, SignatureHelpProvider, decoder)
 
 import Json.Decode as Decode exposing (Decoder, bool, field, int, string)
 
