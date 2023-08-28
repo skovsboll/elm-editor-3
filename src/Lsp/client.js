@@ -10,15 +10,9 @@ const app = Elm.Main.init({
 app.ports.outgoingMessage.subscribe(sendMessageToServer);
 
 // Send a message to the LSP server.
-function sendMessageToServer(method, params) {
+function sendMessageToServer(message) {
     if (socket.readyState === WebSocket.OPEN) {
-        const message = {
-            jsonrpc: '2.0',
-            id: 1,
-            method: method,
-            params: params
-        }
-        socket.send(JSON.stringify(message));
+        socket.send(message);
     } else {
         console.error('WebSocket is not open');
     }
@@ -31,7 +25,7 @@ socket.onmessage = function (event) {
 
 // Initialize the LSP handshake when the WebSocket connection is established.
 socket.onopen = function () {
-    app.ports.webSocketReady.send();
+    app.ports.webSocketReady.send("ready");
 };
 
 

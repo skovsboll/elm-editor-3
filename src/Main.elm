@@ -214,7 +214,6 @@ update msg model =
                             String.slice 0 model.cursor.pos model.text
                                 ++ current.code
                                 ++ String.slice model.cursor.pos -1 model.text
-                                |> Debug.log "newText"
 
                         ( newModel, cmd ) =
                             updateText newText model
@@ -338,10 +337,6 @@ keyDecoder model =
     in
     J.map4
         (\key ctrl start end ->
-            let
-                _ =
-                    Debug.log "key" key
-            in
             case ( key, ctrl ) of
                 ( " ", True ) ->
                     simpleMessage ToggleSuggestions
