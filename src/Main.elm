@@ -17,7 +17,9 @@ import Layers.Types exposing (Cursor, ScrollPos)
 import Lsp.Down exposing (MessageType(..))
 import Lsp.Down.Completion as Completion
 import Lsp.Ports
+import Lsp.Up.Completion
 import Lsp.Up.DidChange
+import Lsp.Up.DidOpen
 import Lsp.Up.Initialize as Initialize
 
 
@@ -26,7 +28,7 @@ type Msg
     | Input String
     | Move Int Int
     | Scroll ScrollPos
-    | ToggleSuggestions
+    | RequestSuggestions
     | NextSuggestion
     | PrevSuggestion
     | InsertSuggestion
@@ -44,6 +46,7 @@ type alias Model =
     , suggestions : Maybe ( List Suggestion, Suggestion, List Suggestion )
     , adorns : List Adorn
     , version : Int
+    , uri : String
     }
 
 
@@ -87,6 +90,7 @@ init _ =
       , suggestions = Nothing
       , adorns = Layers.Adorns.fakeAdorns defaultSrc
       , version = 1
+      , uri = "inmemory://query-query-input-0"
       }
     , Cmd.none
     )
@@ -165,29 +169,21 @@ update msg model =
         Move _ end ->
             ( { model | cursor = Cursor.fromTextPosition model.text end }, Cmd.none )
 
-        ToggleSuggestions ->
-            case model.suggestions of
-                Nothing ->
-                    ( { model
-                        | suggestions =
-                            Just
-                                ( []
-                                , { icon = "✸", code = "timechart()" }
-                                , [ { icon = "◎", code = "parseCsv()" }
-                                  , { icon = "✢", code = "mjallo()" }
-                                  , { icon = "❍", code = "djallo()" }
-                                  ]
-                                )
-                      }
-                    , Cmd.none
-                    )
-
-                _ ->
-                    ( { model
-                        | suggestions = Nothing
-                      }
-                    , Cmd.none
-                    )
+        RequestSuggestions ->
+            let
+                newVersion : Int
+                newVersion =
+                    model.version + 1
+            in
+            ( { model | version = newVersion }
+            , sendLsp
+                (Lsp.Up.Completion.encode
+                    { uri = model.uri
+                    , id = newVersion
+                    , position = model.cursor |> Cursor.toPosition
+                    }
+                )
+            )
 
         PrevSuggestion ->
             case model.suggestions of
@@ -280,13 +276,24 @@ updateLspMessage model msg =
                                     Nothing
                     }
             in
-            ( modelWithSuggestions, Cmd.none )
+            ( modelWithSuggestions, Cmd.none ) |> Debug.log "completion"
 
         Hover result ->
             ( model, Cmd.none )
 
-        Initialize result ->
-            ( model, Cmd.none )
+        Initialize _ ->
+            ( model
+            , sendLsp
+                (Lsp.Up.DidOpen.encode
+                    { textDocument =
+                        { uri = model.uri
+                        , languageId = "2.0"
+                        , version = 1
+                        , text = model.text
+                        }
+                    }
+                )
+            )
 
 
 itemToSuggestion : Completion.CompletionItem -> Suggestion
@@ -339,7 +346,7 @@ keyDecoder model =
         (\key ctrl start end ->
             case ( key, ctrl ) of
                 ( " ", True ) ->
-                    simpleMessage ToggleSuggestions
+                    simpleMessage RequestSuggestions
 
                 ( "Enter", False ) ->
                     case model.suggestions of
@@ -355,7 +362,7 @@ keyDecoder model =
                             simpleMessage Noop
 
                         _ ->
-                            simpleMessage ToggleSuggestions
+                            simpleMessage RequestSuggestions
 
                 ( "ArrowUp", False ) ->
                     case model.suggestions of

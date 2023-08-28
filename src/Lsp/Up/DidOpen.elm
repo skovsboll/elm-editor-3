@@ -5,7 +5,6 @@ import Json.Encode as E
 
 type alias DidOpenTextDocumentParams =
     { textDocument : TextDocumentItem
-    , id : Int
     }
 
 
@@ -22,7 +21,6 @@ encode params =
     E.object
         [ ( "jsonrpc", E.string "2.0" )
         , ( "method", E.string "textDocument/didOpen" )
-        , ( "id", E.int params.id )
         , ( "params", paramsEncoder params )
         ]
 

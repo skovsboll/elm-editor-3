@@ -1,6 +1,7 @@
-module Cursor exposing (fromTextPosition)
+module Cursor exposing (fromTextPosition, toPosition)
 
 import Layers.Types exposing (Cursor)
+import Lsp.Diagnostics
 
 
 fontHeight : Float
@@ -39,3 +40,10 @@ fromTextPosition text position =
             toFloat (col - 1) * fontWidth
     in
     { x = x, y = y, row = row, col = col, pos = position }
+
+
+toPosition : Cursor -> Lsp.Diagnostics.Position
+toPosition cursor =
+    { line = cursor.row
+    , character = cursor.col
+    }

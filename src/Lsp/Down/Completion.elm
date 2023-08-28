@@ -39,7 +39,7 @@ type alias CompletionItem =
 
 type alias CompletionResult =
     { jsonRpcVersion : String
-    , id : String
+    , id : Int
     , result : CompletionList
     }
 
@@ -48,7 +48,7 @@ decoder : Decoder CompletionResult
 decoder =
     Decode.map3 CompletionResult
         (field "jsonrpc" string)
-        (field "id" string)
+        (field "id" int)
         (field "result" completionListDecoder)
 
 
