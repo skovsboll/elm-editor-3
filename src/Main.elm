@@ -9,11 +9,11 @@ import Html.Attributes as A
 import Json.Decode as J
 import Json.Encode as E
 import Layers.Adorns exposing (Adorn)
-import Layers.AutoComplete exposing (Suggestion)
+import Layers.AutoComplete
 import Layers.DiffGutter
 import Layers.Syntax
 import Layers.TextArea
-import Layers.Types exposing (Cursor, ScrollPos)
+import Layers.Types exposing (Cursor, ScrollPos, Suggestion, SuggestionsList)
 import Lsp.Down exposing (MessageType(..))
 import Lsp.Down.Completion as Completion
 import Lsp.Ports
@@ -43,7 +43,7 @@ type alias Model =
     , ast : List Line
     , scroll : ScrollPos
     , cursor : Cursor
-    , suggestions : Maybe ( List Suggestion, Suggestion, List Suggestion )
+    , suggestions : SuggestionsList
     , adorns : List Adorn
     , version : Int
     , uri : String

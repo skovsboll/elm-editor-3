@@ -1,4 +1,4 @@
-module Layers.Types exposing (ScrollPos, Cursor)
+module Layers.Types exposing (Cursor, ScrollPos, Suggestion, SuggestionsList)
 
 
 type alias ScrollPos =
@@ -14,3 +14,11 @@ type alias Cursor =
     , row : Int
     , pos : Int
     }
+
+
+type alias Suggestion =
+    { icon : String, code : String }
+
+
+type alias SuggestionsList =
+    Maybe ( List Suggestion, Suggestion, List Suggestion )

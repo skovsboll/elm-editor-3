@@ -1,15 +1,11 @@
-module Layers.AutoComplete exposing (Suggestion, view)
+module Layers.AutoComplete exposing (view)
 
 import Html as H
 import Html.Attributes as A
-import Layers.Types exposing (Cursor, ScrollPos)
+import Layers.Types exposing (Cursor, ScrollPos, SuggestionsList)
 
 
-type alias Suggestion =
-    { icon : String, code : String }
-
-
-view : { a | scroll : ScrollPos, cursor : Cursor, suggestions : Maybe ( List Suggestion, Suggestion, List Suggestion ) } -> H.Html msg
+view : { a | scroll : ScrollPos, cursor : Cursor, suggestions : SuggestionsList } -> H.Html msg
 view model =
     case model.suggestions of
         Nothing ->
