@@ -4,12 +4,11 @@
 ![Screenshot of the HQL editor](res/screenshot.png)
 
 
-
 ## Why?
 
 - Lightweight, no npm package dependencies
 - Elm
-- Need more?
+- Need more reasons?
 
 
 ## How?
@@ -24,8 +23,8 @@ Keep overlays in sync when scrolling:
 
 ## LSP support
 
-First two message types are implemented (Down/Diagnostics and Up/DocumentChange). 
-Help appreciated. See [messate-types-to-be-supported.txt](https://github.com/skovsboll/elm-editor-3/blob/main/src/Lsp/message-types-to-be-supported.txt)
+A few of the most important message types are implemented.
+Help appreciated. 
 
 
 ## Developer getting started
